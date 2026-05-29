@@ -20,7 +20,7 @@ from src.analysis.cooccurrence_network import build_cooccurrence_matrix, build_g
 from src.visualization.network_plot import draw_network
 from src.visualization.umap_plot import reduce_and_plot
 
-WORKNET_PATH  = "data/processed/worknet/worknet_processed.csv"
+KR_PATH  = "data/processed/kr_jobs_clean.csv"
 LINKEDIN_PATH = "data/processed/linkedin/linkedin_processed.csv"
 FIG_DIR       = "outputs/figures"
 MDL_DIR       = "outputs/models"
@@ -38,10 +38,10 @@ def load_docs_and_tokens(path: str, text_col: str = "text", token_col: str = "to
 
 
 # ---------------------------------------------------------------------------
-# BERTopic — 워크넷 + LinkedIn 합산
+# BERTopic — 국내공고 + LinkedIn 합산
 # ---------------------------------------------------------------------------
 def run_bertopic() -> None:
-    df_w, docs_w, _ = load_docs_and_tokens(WORKNET_PATH)
+    df_w, docs_w, _ = load_docs_and_tokens(KR_PATH)
     df_l, docs_l, _ = load_docs_and_tokens(LINKEDIN_PATH)
     docs = docs_w + docs_l
 
@@ -60,7 +60,7 @@ def run_bertopic() -> None:
 # Word2Vec — 주요 키워드 공기어
 # ---------------------------------------------------------------------------
 def run_word2vec() -> None:
-    _, _, tokens_w = load_docs_and_tokens(WORKNET_PATH)
+    _, _, tokens_w = load_docs_and_tokens(KR_PATH)
     _, _, tokens_n = load_docs_and_tokens("data/processed/news/news_processed.csv")
     all_tokens = tokens_w + tokens_n
 
@@ -77,10 +77,10 @@ def run_word2vec() -> None:
 # Co-occurrence Network
 # ---------------------------------------------------------------------------
 def run_cooccurrence() -> None:
-    _, _, tokens_w = load_docs_and_tokens(WORKNET_PATH)
+    _, _, tokens_w = load_docs_and_tokens(KR_PATH)
     edge_df = build_cooccurrence_matrix(tokens_w, min_count=5)
     G = build_graph(edge_df)
-    draw_network(G, title="워크넷 기술스택 Co-occurrence Network",
+    draw_network(G, title="국내공고 기술스택 Co-occurrence Network",
                  save_path=f"{FIG_DIR}/cooccurrence_network.png")
     print("[Co-occurrence] 저장 완료")
 

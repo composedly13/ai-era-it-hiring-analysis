@@ -19,7 +19,7 @@ from collections import Counter
 import pandas as pd
 from src.preprocessing.tech_dictionary import TECH_DICT, SYNONYMS, normalize
 
-WORKNET_PATH  = "data/processed/worknet/worknet_processed.csv"
+KR_PATH  = "data/processed/kr_jobs_clean.csv"
 NEWS_PATH     = "data/processed/news/news_processed.csv"
 LINKEDIN_PATH = "data/processed/linkedin/linkedin_processed.csv"
 DICT_PATH     = "dict/tech_stack_dictionary.json"
@@ -30,10 +30,10 @@ SYN_PATH      = "dict/synonyms.json"
 # Step 1. 3개 processed 파일 로드
 # ---------------------------------------------------------------------------
 def step1_load() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    df_w = pd.read_csv(WORKNET_PATH)
+    df_w = pd.read_csv(KR_PATH)
     df_n = pd.read_csv(NEWS_PATH)
     df_l = pd.read_csv(LINKEDIN_PATH)
-    print(f"[Step1] 워크넷: {len(df_w):,} / 뉴스: {len(df_n):,} / LinkedIn: {len(df_l):,}")
+    print(f"[Step1] 국내공고: {len(df_w):,} / 뉴스: {len(df_n):,} / LinkedIn: {len(df_l):,}")
     return df_w, df_n, df_l
 
 

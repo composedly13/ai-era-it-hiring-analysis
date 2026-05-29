@@ -12,10 +12,10 @@ from pathlib import Path
 FIG_DIR = "outputs/figures"
 
 EXPECTED_FIGURES = {
-    "worknet_top_skills.png":         "RQ1: 워크넷 상위 기술스택 막대그래프",
+    "kr_jobs_top_skills.png":         "RQ1: 국내공고 상위 기술스택 막대그래프",
     "linkedin_top_skills.png":        "RQ2: LinkedIn 상위 기술스택 막대그래프",
     "news_ai_trend.png":              "RQ3: 뉴스 AI 키워드 월별 언급률 시계열",
-    "wc_worknet.png":                 "WordCloud — 워크넷",
+    "wc_kr_jobs.png":                 "WordCloud — 국내공고",
     "wc_news_before.png":             "WordCloud — 뉴스 before ChatGPT",
     "wc_news_after.png":              "WordCloud — 뉴스 after ChatGPT",
     "cooccurrence_network.png":       "Co-occurrence Network (수업 외)",

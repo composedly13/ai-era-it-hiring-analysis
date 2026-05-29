@@ -1,10 +1,10 @@
 {
-  "programming_language": ["Java", "Python", "JavaScript", "TypeScript", "C", "C++", "C#", "Kotlin", "Swift", "Go", "Rust"],
-  "frontend": ["React", "Vue", "Angular", "Next.js", "HTML", "CSS", "Tailwind", "Redux"],
-  "backend": ["Spring", "Node.js", "Express", "Django", "Flask", "FastAPI"],
-  "database": ["MySQL", "PostgreSQL", "MongoDB", "Oracle", "Redis", "Elasticsearch"],
-  "cloud_infra": ["AWS", "Azure", "GCP", "Docker", "Kubernetes", "Linux", "Nginx", "CI/CD"],
-  "ai_data": ["AI", "Machine Learning", "Deep Learning", "LLM", "Generative AI", "NLP", "Computer Vision", "PyTorch", "TensorFlow", "Pandas"],
-  "collaboration": ["Git", "GitHub", "Jira", "Slack", "Notion", "Agile", "Scrum"],
-  "soft_skill": ["커뮤니케이션", "협업", "문제해결", "문서화", "자기주도", "프로젝트 관리"]
+  "language": ["Java", "Python", "JavaScript", "TypeScript", "C++", "C#", "Kotlin", "Swift", "Go", "Rust", "PHP", "Ruby", "Scala", "SQL"],
+  "frontend": ["React", "Vue", "Angular", "Next.js", "Svelte", "Redux", "HTML", "CSS"],
+  "backend": ["Spring", "Node.js", "Express", "Django", "Flask", "FastAPI", "NestJS"],
+  "mobile": ["Android", "iOS", "Flutter", "React Native"],
+  "database": ["MySQL", "PostgreSQL", "MongoDB", "Oracle", "Redis", "Elasticsearch", "MariaDB"],
+  "cloud_infra": ["AWS", "Azure", "GCP", "Docker", "Kubernetes", "Linux", "Nginx", "Terraform", "Jenkins", "Kafka", "Airflow"],
+  "ai_data": ["AI", "Machine Learning", "Deep Learning", "LLM", "NLP", "Computer Vision", "PyTorch", "TensorFlow", "Pandas", "NumPy", "scikit-learn", "Spark", "Hadoop"],
+  "collaboration": ["Git", "GitHub", "GitLab", "Jira", "REST API", "GraphQL"]
 }

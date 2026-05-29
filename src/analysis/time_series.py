@@ -2,7 +2,7 @@
 시계열 분석 — 역할 분리 원칙 적용 (Validity Guardrail #4)
 뉴스: 장기 시계열 (2021–2026, before/after AI)
 LinkedIn: 단기 단면 (2023–2024 드리프트)
-워크넷: 현재 단면
+국내공고: 현재 단면
 """
 
 import pandas as pd
