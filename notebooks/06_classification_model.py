@@ -2,13 +2,13 @@
 06_classification_model.py
 담당: 미정
 
-직무군 분류 모델 (주 모델, RQ5)
+직무군 분류 모델 (보조 모델, RQ6)
 라벨: Frontend / Backend / Fullstack / Data·AI / DevOps·Cloud / Security / Other IT
 출력: outputs/models/, outputs/figures/confusion_matrix.png
 
 Validity Guardrail #3 — 순환논리 회피:
   키워드로 라벨링 후 같은 키워드로 학습하면 성능이 무의미하게 높아진다.
-  직무군 분류는 워크넷 직종코드 / LinkedIn job title 기반 라벨을 사용한다.
+  직무군 분류는 국내공고 직종코드 / LinkedIn job title 기반 라벨을 사용한다.
   AI 관련 공고 분류는 보조(키워드 약지도)로만 활용하고 한계를 논문에 명시한다.
 """
 
@@ -29,7 +29,7 @@ from src.modeling.job_classifier import (
 )
 from src.modeling.evaluation import evaluate
 
-WORKNET_PATH  = "data/processed/worknet/worknet_processed.csv"
+KR_PATH  = "data/processed/kr_jobs_clean.csv"
 LINKEDIN_PATH = "data/processed/linkedin/linkedin_processed.csv"
 FIG_DIR       = "outputs/figures"
 MDL_DIR       = "outputs/models"
@@ -42,10 +42,10 @@ os.makedirs(MDL_DIR, exist_ok=True)
 # Step 1. 라벨 생성
 # ---------------------------------------------------------------------------
 def step1_build_dataset() -> tuple[list[str], list[str]]:
-    df_w = pd.read_csv(WORKNET_PATH)
+    df_w = pd.read_csv(KR_PATH)
     df_l = pd.read_csv(LINKEDIN_PATH)
 
-    # TODO: 워크넷 직종코드 → JOB_LABELS 매핑
+    # TODO: 국내공고 직종코드 → JOB_LABELS 매핑
     # TODO: LinkedIn job_title → JOB_LABELS 매핑
     # texts = ...
     # labels = ...

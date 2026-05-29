@@ -3,7 +3,7 @@
 담당: 미정
 
 탐색적 분석 — 빈도·TF-IDF·WordCloud·시계열
-RQ1(워크넷 상위 역량) / RQ2(LinkedIn AI 역량) / RQ3(뉴스 담론 변화)
+RQ1(국내공고 상위 역량) / RQ2(LinkedIn AI 역량) / RQ3(뉴스 담론 변화)
 출력: outputs/figures/
 """
 
@@ -23,7 +23,7 @@ from src.analysis.tfidf_analysis import top_terms_per_group
 from src.analysis.time_series import monthly_keyword_count
 from src.visualization.wordcloud_gen import generate_wordcloud
 
-WORKNET_PATH  = "data/processed/worknet/worknet_processed.csv"
+KR_PATH  = "data/processed/kr_jobs_clean.csv"
 NEWS_PATH     = "data/processed/news/news_processed.csv"
 LINKEDIN_PATH = "data/processed/linkedin/linkedin_processed.csv"
 FIG_DIR       = "outputs/figures"
@@ -37,20 +37,20 @@ def load_token_lists(df: pd.DataFrame, col: str = "tech_tokens") -> list[list[st
 
 
 # ---------------------------------------------------------------------------
-# RQ1. 워크넷 상위 기술스택 빈도
+# RQ1. 국내공고 상위 기술스택 빈도
 # ---------------------------------------------------------------------------
-def rq1_worknet_top_skills() -> None:
-    df = pd.read_csv(WORKNET_PATH)
+def rq1_kr_jobs_top_skills() -> None:
+    df = pd.read_csv(KR_PATH)
     freq = token_frequency(load_token_lists(df))
 
     top20 = freq.head(20)
     top20[::-1].plot(kind="barh", figsize=(10, 7), color="#dd8452")
-    plt.title("RQ1: 국내 IT 채용공고 상위 요구 기술스택 (워크넷)", fontsize=13)
+    plt.title("RQ1: 국내 IT 채용공고 상위 요구 기술스택 (국내공고)", fontsize=13)
     plt.xlabel("언급 공고 수")
     plt.tight_layout()
-    plt.savefig(f"{FIG_DIR}/worknet_top_skills.png", dpi=150, bbox_inches="tight")
+    plt.savefig(f"{FIG_DIR}/kr_jobs_top_skills.png", dpi=150, bbox_inches="tight")
     plt.show()
-    print("[RQ1] 저장:", f"{FIG_DIR}/worknet_top_skills.png")
+    print("[RQ1] 저장:", f"{FIG_DIR}/kr_jobs_top_skills.png")
 
 
 # ---------------------------------------------------------------------------
@@ -92,12 +92,12 @@ def rq3_news_timeseries() -> None:
 
 
 # ---------------------------------------------------------------------------
-# WordCloud — 워크넷 / 뉴스 before·after
+# WordCloud — 국내공고 / 뉴스 before·after
 # ---------------------------------------------------------------------------
 def wordcloud_all() -> None:
-    df_w = pd.read_csv(WORKNET_PATH)
+    df_w = pd.read_csv(KR_PATH)
     freq_w = token_frequency(load_token_lists(df_w)).to_dict()
-    generate_wordcloud(freq_w, title="워크넷 기술스택", save_path=f"{FIG_DIR}/wc_worknet.png")
+    generate_wordcloud(freq_w, title="국내공고 기술스택", save_path=f"{FIG_DIR}/wc_kr_jobs.png")
 
     df_n = pd.read_csv(NEWS_PATH)
     for period in ["before", "after"]:
@@ -111,7 +111,7 @@ def wordcloud_all() -> None:
 # Entry point
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
-    rq1_worknet_top_skills()
+    rq1_kr_jobs_top_skills()
     rq2_linkedin_ai_skills()
     rq3_news_timeseries()
     wordcloud_all()

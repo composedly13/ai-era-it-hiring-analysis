@@ -6,6 +6,7 @@ lxml>=4.9.0
 # Data processing
 pandas>=2.0.0
 numpy>=1.24.0
+scipy>=1.11.0
 
 # Korean NLP
 konlpy>=0.6.0
