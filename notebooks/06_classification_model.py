@@ -29,7 +29,7 @@ from src.modeling.job_classifier import (
 )
 from src.modeling.evaluation import evaluate
 
-KR_PATH  = "data/processed/kr_jobs_clean.csv"
+KR_PATH  = "data/processed/domestic/kr_jobs_clean.csv"
 LINKEDIN_PATH = "data/processed/linkedin/linkedin_processed.csv"
 FIG_DIR       = "outputs/figures"
 MDL_DIR       = "outputs/models"

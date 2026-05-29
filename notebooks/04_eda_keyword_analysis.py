@@ -23,7 +23,7 @@ from src.analysis.tfidf_analysis import top_terms_per_group
 from src.analysis.time_series import monthly_keyword_count
 from src.visualization.wordcloud_gen import generate_wordcloud
 
-KR_PATH  = "data/processed/kr_jobs_clean.csv"
+KR_PATH  = "data/processed/domestic/kr_jobs_clean.csv"
 NEWS_PATH     = "data/processed/news/news_processed.csv"
 LINKEDIN_PATH = "data/processed/linkedin/linkedin_processed.csv"
 FIG_DIR       = "outputs/figures"
