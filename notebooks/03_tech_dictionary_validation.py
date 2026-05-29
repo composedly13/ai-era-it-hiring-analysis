@@ -19,7 +19,7 @@ from collections import Counter
 import pandas as pd
 from src.preprocessing.tech_dictionary import TECH_DICT, SYNONYMS, normalize
 
-KR_PATH  = "data/processed/kr_jobs_clean.csv"
+KR_PATH  = "data/processed/domestic/kr_jobs_clean.csv"
 NEWS_PATH     = "data/processed/news/news_processed.csv"
 LINKEDIN_PATH = "data/processed/linkedin/linkedin_processed.csv"
 DICT_PATH     = "dict/tech_stack_dictionary.json"

@@ -20,7 +20,7 @@ from src.analysis.cooccurrence_network import build_cooccurrence_matrix, build_g
 from src.visualization.network_plot import draw_network
 from src.visualization.umap_plot import reduce_and_plot
 
-KR_PATH  = "data/processed/kr_jobs_clean.csv"
+KR_PATH  = "data/processed/domestic/kr_jobs_clean.csv"
 LINKEDIN_PATH = "data/processed/linkedin/linkedin_processed.csv"
 FIG_DIR       = "outputs/figures"
 MDL_DIR       = "outputs/models"

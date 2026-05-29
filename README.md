@@ -146,13 +146,41 @@ python -m venv .venv
 source .venv/bin/activate        # macOS/Linux
 # .venv\Scripts\activate         # Windows
 pip install -r requirements.txt
-
-# 국내 공고 수집 + 통합 (점핏 + 원티드)
-python notebooks/00_domestic_collection.py
-# 뉴스·LinkedIn은 각각 다운로드 후 01·02 실행
 ```
 
-> **데이터 파일은 git에서 관리하지 않습니다.** `data/raw/`·`data/processed/`에 직접 배치하세요.
+---
+
+## 데이터 배치 방법
+
+데이터 파일은 git에서 관리하지 않습니다 (`.gitignore`). 팀 공유본을 아래 경로에 직접 배치하세요.
+
+### 국내 공고 (점핏·원티드)
+팀 카톡 공유본 zip 압축 해제 후:
+```
+data/processed/kr_jobs_clean.csv
+data/processed/kr_jobs_clean.jsonl
+```
+> 직접 재수집하려면: `python notebooks/00_domestic_collection.py`
+
+### 뉴스 (빅카인즈)
+빅카인즈(bigkinds.or.kr)에서 키워드·기간별 분할 내보내기 후:
+```
+data/raw/news/news_<기간>.xlsx   (예: news_2021_2022.xlsx)
+```
+> 수집 쿼리 계획: `python notebooks/01_news_collection_preprocessing.py` 실행 시 출력
+
+### LinkedIn
+Kaggle에서 다운로드 후:
+```bash
+kaggle datasets download arshkon/linkedin-job-postings -p data/raw/linkedin --unzip
+```
+
+### 전처리 결과 경로 요약
+| 파일 | 경로 | 생성 스크립트 |
+|---|---|---|
+| 국내 공고 | `data/processed/domestic/kr_jobs_clean.csv` / `.jsonl` | 00 또는 카톡 공유본 |
+| 뉴스 | `data/processed/news/news_processed.csv` | 01 |
+| LinkedIn | `data/processed/linkedin/linkedin_processed.csv` | 02 |
 
 ---
 

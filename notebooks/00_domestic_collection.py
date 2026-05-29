@@ -22,9 +22,9 @@ from src.collection.jumpit_crawler import collect_jumpit
 from src.collection.wanted_crawler import collect_wanted
 from src.preprocessing.tech_dictionary import normalize_tag, extract_skills
 
-RAW_DIR = "data/raw"
-OUT_CSV = "data/processed/kr_jobs_clean.csv"
-OUT_JSONL = "data/processed/kr_jobs_clean.jsonl"
+RAW_DIR = "data/raw/domestic"
+OUT_CSV = "data/processed/domestic/kr_jobs_clean.csv"
+OUT_JSONL = "data/processed/domestic/kr_jobs_clean.jsonl"
 SKIP_COLLECT = os.environ.get("SKIP_COLLECT") == "1"   # 1이면 raw 재사용(재크롤 안 함)
 
 

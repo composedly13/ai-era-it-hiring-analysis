@@ -30,9 +30,9 @@ for _f in ("AppleGothic", "Malgun Gothic", "NanumGothic"):
 
 from src.analysis.gap_index import skill_frequency, gap_table
 
-KR_PATH = "data/processed/kr_jobs_clean.jsonl"          # 국내공고(점핏+원티드)
-NEWS_PATH = "data/processed/news_processed.csv"          # 뉴스(skills + 발행일)
-LINKEDIN_PATH = "data/processed/linkedin_processed.csv"  # 글로벌(skills)
+KR_PATH = "data/processed/domestic/kr_jobs_clean.jsonl"  # 국내공고(점핏+원티드)
+NEWS_PATH = "data/processed/news/news_processed.csv"      # 뉴스(skills + 발행일)
+LINKEDIN_PATH = "data/processed/linkedin/linkedin_processed.csv"  # 글로벌(skills)
 FIG_DIR = "outputs/figures"
 os.makedirs(FIG_DIR, exist_ok=True)
 
