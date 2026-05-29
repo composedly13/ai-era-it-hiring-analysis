@@ -5,7 +5,7 @@
 
 | 항목 | 내용 |
 |---|---|
-| 과목 | 학부 텍스트마이닝 캡스톤 |
+| 과목 | 텍스트마이닝 |
 | 팀 구성 | 4명 |
 | 제출 마감 | 2026-06-15 23:59 |
 | 발표 | 2026-06-16 11:00 |
@@ -16,16 +16,17 @@
 
 ```
 ai-era-it-hiring-analysis/
-├── notebooks/                        # 실행 노트북 (순서대로)
-│   ├── 00_data_collection_worknet.ipynb   담당: A
-│   ├── 01_data_collection_news.ipynb      담당: B
-│   ├── 02_data_collection_linkedin.ipynb  담당: C
-│   ├── 03_preprocessing.ipynb             담당: D (전원 기여)
-│   ├── 04_eda_keyword_analysis.ipynb
-│   ├── 05_topic_modeling_bertopic.ipynb
-│   ├── 06_classification_model.ipynb
-│   ├── 07_rq4_discourse_vs_reality.ipynb  ← RQ4 핵심
-│   └── 08_visualization_summary.ipynb
+├── notebooks/                        # 파이프라인 실행 스크립트 (순서대로)
+│   ├── README.md                                   ← 각 스크립트 상세 명세
+│   ├── 00_worknet_collection_preprocessing.py      담당: B
+│   ├── 01_news_collection_preprocessing.py         담당: C
+│   ├── 02_linkedin_collection_preprocessing.py     담당: D
+│   ├── 03_tech_dictionary_validation.py            담당: 전원
+│   ├── 04_eda_keyword_analysis.py                  담당: 전원
+│   ├── 05_topic_modeling_bertopic.py               담당: 전원
+│   ├── 06_classification_model.py                  담당: 전원
+│   ├── 07_rq4_discourse_vs_reality.py              ← RQ4 핵심 (전원)
+│   └── 08_visualization_summary.py                 담당: 전원
 │
 ├── src/                              # 재사용 가능한 Python 모듈
 │   ├── collection/
@@ -144,8 +145,11 @@ pip install -r requirements.txt
 # .env 파일 생성 (git 미추적)
 # WORKNET_API_KEY=your_key_here
 
-# 4. 노트북 순서대로 실행
-jupyter notebook notebooks/
+# 4. 스크립트 순서대로 실행 (프로젝트 루트에서)
+python notebooks/00_worknet_collection_preprocessing.py
+python notebooks/01_news_collection_preprocessing.py
+python notebooks/02_linkedin_collection_preprocessing.py
+# ... (notebooks/README.md 참조)
 ```
 
 > **데이터 파일은 git에서 관리하지 않습니다.**  
@@ -155,14 +159,15 @@ jupyter notebook notebooks/
 
 ## 역할 분담
 
-| 팀원 | 주 담당 | 핵심 노트북 |
-|---|---|---|
-| A | 워크넷 API 수집 + 크롤링 | 00 |
-| B | 빅카인즈 뉴스 담론 시계열 | 01 |
-| C | LinkedIn 병합·IT 필터링 | 02 |
-| D | 전처리·기술사전·BERTopic·분류모델·발표 총괄 | 03–08 |
+| 팀원 | 주 담당 | 브랜치 | 핵심 스크립트 |
+|---|---|---|---|
+| **A** | 기획서 재작성 · 논문/보고서 총괄 | `develop` | — |
+| **B** | 워크넷 수집 + 전처리 | `feature/worknet` | 00 |
+| **C** | 빅카인즈 뉴스 수집 + 전처리 | `feature/news` | 01 |
+| **D** | LinkedIn 수집 + 전처리 | `feature/linkedin` | 02 |
 
-> **RQ4(담론 vs 현실) 비교는 A·B·D 공동 작업** — 07번 노트북
+> B·C·D는 각자 브랜치에서 작업 후 `develop`으로 PR → 머지 완료 시점에 03~08 담당 분배 예정  
+> **03~08: 담당 미정**
 
 ---
 
