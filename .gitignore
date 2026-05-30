@@ -30,6 +30,10 @@ outputs/models/*.pkl
 outputs/models/*.pt
 outputs/models/*.bin
 
+# 재현 가능한 결과 테이블 (07 노트북에서 재생성)
+outputs/rq4_*.csv
+outputs/rq5_*.csv
+
 # API keys / secrets
 .env
 *.env

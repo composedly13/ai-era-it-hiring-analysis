@@ -63,7 +63,7 @@ TITLE_RULES = [
     ("security", r"(보안|security|취약점|침해대응|소프트웨어\s*보안|application\s*security|보안칩|정보보호|개인정보보호)"),
     ("fullstack",r"(풀스택|full.?stack)"),
     ("frontend", r"(프론트|front.?end|ui\s*개발|ux\s*개발|web\s*publisher|웹\s*퍼블리셔|react|vue|angular|next\.?js)"),
-    ("backend",  r"(백엔드|back.?end|서버\s*(엔지니어|개발|engineer)|server\s*engineer|api\s*개발|spring|node\.?js|django|java\s*개발자|kotlin\s*개발|python\s*개발|go\s*개발|golang\s*개발|\.net\s*개발|닷넷\s*개발|asp\.net|c#\s*개발)"),
+    ("backend",  r"(백엔드|back.?end|서버\s*(엔지니어|개발|engineer)|server\s*engineer|api\s*개발|spring|node\.?js|django|java\s*개발자|kotlin\s*개발|python\s*개발|go\s*개발|golang\s*개발|\.net\s*개발|닷넷\s*개발|asp\.net|c#\s*개발|software\s*(engineer|developer)|principal\s*engineer|staff\s*engineer|lead\s*engineer\b|senior\s*engineer\b|software\s*architect|developer\s*relations|developer\s*advocate)"),
 ]
 
 
