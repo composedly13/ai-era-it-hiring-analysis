@@ -157,10 +157,13 @@ pip install -r requirements.txt
 ### 국내 공고 (점핏·원티드)
 팀 카톡 공유본 zip 압축 해제 후:
 ```
-data/processed/kr_jobs_clean.csv
-data/processed/kr_jobs_clean.jsonl
+data/raw/domestic/jumpit.jsonl
+data/raw/domestic/wanted.jsonl
+data/processed/domestic/kr_jobs_clean.csv
+data/processed/domestic/kr_jobs_clean.jsonl
 ```
 > 직접 재수집하려면: `python notebooks/00_domestic_collection.py`
+> raw 재사용(재크롤 없이 재처리)만 하려면: `SKIP_COLLECT=1 python notebooks/00_domestic_collection.py`
 
 ### 뉴스 (빅카인즈)
 빅카인즈(bigkinds.or.kr)에서 키워드·기간별 분할 내보내기 후:

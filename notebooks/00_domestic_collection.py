@@ -21,6 +21,7 @@ from collections import Counter
 from src.collection.jumpit_crawler import collect_jumpit
 from src.collection.wanted_crawler import collect_wanted
 from src.preprocessing.tech_dictionary import normalize_tag, extract_skills
+from src.preprocessing.role_classifier import classify_record, ROLE_LABELS
 
 RAW_DIR = "data/raw/domestic"
 OUT_CSV = "data/processed/domestic/kr_jobs_clean.csv"
@@ -61,6 +62,7 @@ def _unify_jumpit(d):
             "title": d.get("title", ""), "career_min": d.get("minCareer"),
             "career_max": d.get("maxCareer"),
             "tags_raw": [s for s in (d.get("techStacks", "") or "").split("|") if s],
+            "site_categories": d.get("jobCategories", "") or "",
             "body": body, "url": d.get("url", "")}
 
 
@@ -71,6 +73,7 @@ def _unify_wanted(d):
             "title": d.get("title", ""), "career_min": d.get("annualFrom"),
             "career_max": d.get("annualTo"),
             "tags_raw": [s for s in (d.get("skillTags", "") or "").split("|") if s],
+            "site_categories": "",
             "body": body, "url": d.get("url", "")}
 
 
@@ -90,17 +93,21 @@ def step2_merge(jp, wt):
             rescued += 1
         r["skills"] = sorted(tagged | body_sk)
         r["n_skills"] = len(r["skills"])
+        r["role"] = classify_record(r["source"], r["title"], r.get("site_categories"))
     # 교차중복(점핏에도 원티드에도 있는 동일 공고)만 제거
     jset = {_norm_key(r["company"], r["title"]) for r in recs if r["source"] == "jumpit"}
     dedup = [r for r in recs
              if not (r["source"] == "wanted" and _norm_key(r["company"], r["title"]) in jset)]
+    role_dist = Counter(r["role"] for r in dedup)
     print(f"[Step2] 통합 {len(dedup)}건 (본문에서 스킬 복원 {rescued}건)")
+    print(f"[Step2] 직무 분포: {dict(role_dist.most_common())}")
     return dedup
 
 
 def step3_save(dedup):
     os.makedirs(os.path.dirname(OUT_CSV), exist_ok=True)
     rows = [{"source": r["source"], "id": r["id"], "company": r["company"], "title": r["title"],
+             "role": r["role"], "site_categories": r.get("site_categories", ""),
              "career_min": r["career_min"], "career_max": r["career_max"],
              "n_skills": r["n_skills"], "skills": "|".join(r["skills"]),
              "body": r["body"], "url": r["url"]} for r in dedup]
