@@ -9,7 +9,7 @@
 | 팀 구성 | 4명 |
 | 제출 마감 | 2026-06-15 23:59 |
 | 발표 | 2026-06-16 11:00 |
-| 데이터 규모 | 국내 3,274 + LinkedIn(IT 수만) + 뉴스(수천) → 전체 수만 건+ |
+| 데이터 규모 | 국내 3,274 + LinkedIn IT 6,923 (전체 123,849에서 IT 광베이스 필터) + 뉴스 TBD → 총 1만+ |
 
 ---
 
@@ -85,7 +85,7 @@ ai-era-it-hiring-analysis/
 | **RQ4** | **언론 담론과 실제 요구역량은 일치하는가? (핵심)** | 뉴스 × 국내공고 | **07** |
 | └ RQ4a | (기술스택 간극) 뉴스·공고의 기술/역량 용어 비교 시 불일치는? | 뉴스 × 국내공고 | 07 |
 | └ RQ4b | (담론 프레임) 뉴스 내 위기/대체/재편 프레임 강도는? | 뉴스 | 07 |
-| **RQ5** | **국내 vs 글로벌 요구역량 격차(lag)는 얼마나 되는가?** | 국내공고 × LinkedIn | 07 |
+| **RQ5** | **국내 2026 vs 글로벌 2024 채용 요건 관측 격차** (시점·시장 차이 결합 효과) | 국내공고 × LinkedIn | 07 |
 | RQ6 | (보조) 공고 텍스트로 직무군을 분류할 수 있는가? | 국내공고/LinkedIn | 06 |
 
 > **RQ4 2트랙 분리:** 프레임어(AI대체·일자리위기)와 기술토큰(SQL·Git)을 한 지표에 섞지 않는다. 기술스택 간극(RQ4a)과 담론 프레임 강도(RQ4b)를 따로 측정.
@@ -130,7 +130,7 @@ LinkedIn        = 2024-04 글로벌 채용 단면    → 글로벌 단면 스냅
 | 점핏 채용공고 | `https://api.jumpit.co.kr/api/positions` (공개 JSON) | **777건** (techStacks 100%, 본문 99%) |
 | 원티드 채용공고 | `https://www.wanted.co.kr/api/v4/jobs` (개발 17개 카테고리) | **2,534건** (skill_tags 50%·본문 100%) |
 | → 국내 통합 | (교차중복 제거) | **3,274건**, 스킬 보유 97% |
-| LinkedIn 2023–24 | [Kaggle: arshkon/linkedin-job-postings](https://www.kaggle.com/datasets/arshkon/linkedin-job-postings) | 123,849 → IT 필터 예정 |
+| LinkedIn 2024-04 | [Kaggle: arshkon/linkedin-job-postings](https://www.kaggle.com/datasets/arshkon/linkedin-job-postings) | 123,849 → **IT 광베이스 필터 6,923건** (스킬 추출 성공 78.7%) |
 | 빅카인즈 뉴스 | [bigkinds.or.kr](https://www.bigkinds.or.kr/) | 2021–26, 본문 200자·2만건/쿼리 제한 |
 
 > **수집 방식:** 점핏·원티드의 공개 JSON 엔드포인트 호출 + 직접 크롤링 → "API 활용 + 직접 수집"(가산점). 학술용·비상업·요청 간 지연.

@@ -71,25 +71,50 @@ def load_linkedin() -> pd.DataFrame | None:
     return df
 
 
-def share_per_token(df: pd.DataFrame) -> pd.Series:
-    """토큰별 '해당 토큰 보유 공고 비율(%)' — 공고 단위 보유율."""
-    n = len(df)
+def share_per_token(df: pd.DataFrame, denom: str = "all") -> pd.Series:
+    """토큰별 '해당 토큰 보유 공고 비율(%)' — 공고 단위 보유율.
+
+    denom='all'     : 전체 공고 분모 (기본, 기존 결과 호환)
+    denom='nonzero' : 스킬 1개 이상 추출된 공고만 분모 (분모 민감도 검증용)
+                      → LinkedIn 추출 성공 78.7% vs 국내 97% 차이 통제
+    """
+    if denom == "nonzero":
+        sub = df[df["tokens"].apply(lambda x: len(x) > 0)]
+    else:
+        sub = df
+    n = len(sub)
+    if n == 0:
+        return pd.Series(dtype=float)
     counts = {}
-    for toks in df["tokens"]:
+    for toks in sub["tokens"]:
         for t in set(toks):
             counts[t] = counts.get(t, 0) + 1
     return (pd.Series(counts) / n * 100).sort_values(ascending=False)
 
 
-def tier_share(df: pd.DataFrame) -> dict:
+def tier_share(df: pd.DataFrame, denom: str = "all") -> dict:
     """공고 단위 tier 보유율 (% · 중복 허용)."""
-    n = len(df)
+    if denom == "nonzero":
+        sub = df[df["tokens"].apply(lambda x: len(x) > 0)]
+    else:
+        sub = df
+    n = len(sub)
+    if n == 0:
+        return {t: 0.0 for t in AI_TIERS}
     out = {}
     for tier, members in AI_TIERS.items():
         members_set = set(members)
-        cnt = df["tokens"].apply(lambda toks: bool(set(toks) & members_set)).sum()
+        cnt = sub["tokens"].apply(lambda toks: bool(set(toks) & members_set)).sum()
         out[tier] = cnt / n * 100
     return out
+
+
+def coverage_stats(df: pd.DataFrame, label: str) -> dict:
+    """추출 커버리지 통계 — 분모 민감도 분석 보조."""
+    n = len(df)
+    with_skills = df["tokens"].apply(lambda x: len(x) > 0).sum()
+    return {"label": label, "total": n, "with_skills": with_skills,
+            "coverage_pct": with_skills / n * 100 if n else 0}
 
 
 # ---------------------------------------------------------------------------
@@ -138,7 +163,8 @@ def rq5_quadrant(kr_share: pd.Series, gl_share: pd.Series, top_n: int = 40) -> N
     ax.set_xlabel("글로벌 LinkedIn 보유율 (%) → ", fontsize=11)
     ax.set_ylabel("한국 점핏·원티드 보유율 (%) →", fontsize=11)
     ax.set_title("RQ5-A: 국내 vs 글로벌 기술스택 보유율 사분면\n"
-                 "(한국 2026-05 vs 글로벌 2024-04 · 토큰별 % 공고)", fontsize=13)
+                 "한국 2026-05 활성공고 vs 글로벌 2024-04 LinkedIn 단면 (~24개월 시차)\n"
+                 "※ 시점·시장(IT 전문 vs 종합 플랫폼)·본문 작성 관행 차이 결합 효과 — '관측된 격차'로 해석", fontsize=11)
     ax.legend(loc="upper left", fontsize=10, framealpha=0.9)
     ax.grid(alpha=0.3)
     plt.tight_layout()
@@ -157,42 +183,66 @@ def rq5_quadrant(kr_share: pd.Series, gl_share: pd.Series, top_n: int = 40) -> N
 # ---------------------------------------------------------------------------
 # RQ5-B. AI 4-tier 한국 vs 글로벌 비교
 # ---------------------------------------------------------------------------
-def rq5_tier_compare(kr_tier: dict, gl_tier: dict) -> None:
+def rq5_tier_compare(kr_df: pd.DataFrame, gl_df: pd.DataFrame) -> None:
+    """RQ5-B: AI 4-tier 한·글 비교 — 분모 민감도 포함 (전체 분모 vs 추출성공만)."""
     tiers = list(AI_TIERS.keys())
-    kr_vals = [kr_tier[t] for t in tiers]
-    gl_vals = [gl_tier[t] for t in tiers]
     labels = [TIER_LABELS[t] for t in tiers]
 
+    kr_all  = tier_share(kr_df, denom="all")
+    gl_all  = tier_share(gl_df, denom="all")
+    kr_nz   = tier_share(kr_df, denom="nonzero")
+    gl_nz   = tier_share(gl_df, denom="nonzero")
+
+    kr_cov = coverage_stats(kr_df, "한국")
+    gl_cov = coverage_stats(gl_df, "글로벌")
+
     x = np.arange(len(tiers))
-    w = 0.38
+    w = 0.20
 
-    fig, ax = plt.subplots(figsize=(12, 6.5))
-    bars1 = ax.bar(x - w/2, kr_vals, w, label="한국 2026-05 (점핏·원티드)", color="#dd8452")
-    bars2 = ax.bar(x + w/2, gl_vals, w, label="글로벌 2024-04 (LinkedIn)", color="#4c72b0")
-
-    for bars, vals in [(bars1, kr_vals), (bars2, gl_vals)]:
+    fig, ax = plt.subplots(figsize=(14, 7))
+    series = [
+        (kr_all, "한국 (전체 분모)",     "#dd8452", -1.5*w),
+        (gl_all, "글로벌 (전체 분모)",   "#4c72b0", -0.5*w),
+        (kr_nz,  "한국 (스킬추출만)",   "#a4513b", +0.5*w),
+        (gl_nz,  "글로벌 (스킬추출만)", "#2c4a73", +1.5*w),
+    ]
+    for data, label, color, off in series:
+        vals = [data[t] for t in tiers]
+        bars = ax.bar(x + off, vals, w, label=label, color=color)
         for b, v in zip(bars, vals):
-            ax.text(b.get_x() + b.get_width()/2, b.get_height() + 1,
-                    f"{v:.1f}%", ha="center", fontsize=10, fontweight="bold")
+            ax.text(b.get_x() + b.get_width()/2, b.get_height() + 0.5,
+                    f"{v:.1f}", ha="center", fontsize=8)
 
-    # 격차 주석
-    for i, (k, g) in enumerate(zip(kr_vals, gl_vals)):
-        diff = k - g
-        ax.text(i, max(k, g) + 6,
-                f"Δ {diff:+.1f}pp",
-                ha="center", fontsize=10, color="darkred" if abs(diff) >= 5 else "gray")
+    # 전체 분모 기준 격차 주석
+    for i, t in enumerate(tiers):
+        diff = kr_all[t] - gl_all[t]
+        diff_nz = kr_nz[t] - gl_nz[t]
+        ax.text(i, max(kr_all[t], gl_all[t], kr_nz[t], gl_nz[t]) + 5,
+                f"Δ전체 {diff:+.1f}pp\nΔ추출 {diff_nz:+.1f}pp",
+                ha="center", fontsize=9,
+                color="darkred" if abs(diff) >= 5 else "gray")
 
     ax.set_xticks(x)
     ax.set_xticklabels(labels, fontsize=10)
     ax.set_ylabel("해당 tier 보유 공고 비율 (%) — 중복 허용", fontsize=11)
-    ax.set_title("RQ5-B: AI 4-tier 한국 vs 글로벌 (% 공고 · 24개월 시차)", fontsize=13)
-    ax.legend(loc="upper left", fontsize=11)
-    ax.set_ylim(0, max(max(kr_vals), max(gl_vals)) * 1.3)
+    ax.set_title("RQ5-B: AI 4-tier 한국 vs 글로벌 — 분모 민감도 분석\n"
+                 f"한국 추출률 {kr_cov['coverage_pct']:.1f}% ({kr_cov['with_skills']}/{kr_cov['total']}) "
+                 f"· 글로벌 추출률 {gl_cov['coverage_pct']:.1f}% ({gl_cov['with_skills']}/{gl_cov['total']})  "
+                 f"· 한국 2026-05 vs 글로벌 2024-04 (~24개월 시차)",
+                 fontsize=12)
+    ax.legend(loc="upper left", fontsize=9, ncol=2)
+    ax.set_ylim(0, 60)
     ax.grid(axis="y", alpha=0.3)
     plt.tight_layout()
     plt.savefig(f"{FIG_DIR}/rq5_ai_tier_compare.png", dpi=150, bbox_inches="tight")
     plt.close(fig)
     print("[RQ5-B] 저장:", f"{FIG_DIR}/rq5_ai_tier_compare.png")
+    print(f"  [커버리지] {kr_cov['label']} {kr_cov['coverage_pct']:.1f}% / "
+          f"{gl_cov['label']} {gl_cov['coverage_pct']:.1f}%")
+    for t in tiers:
+        print(f"  {TIER_LABELS[t]:30s} | 한국 전체 {kr_all[t]:5.1f}% / 추출 {kr_nz[t]:5.1f}% "
+              f"| 글로벌 전체 {gl_all[t]:5.1f}% / 추출 {gl_nz[t]:5.1f}% "
+              f"| Δ전체 {kr_all[t]-gl_all[t]:+5.1f}pp / Δ추출 {kr_nz[t]-gl_nz[t]:+5.1f}pp")
 
 
 # ---------------------------------------------------------------------------
@@ -233,7 +283,8 @@ def rq5_role_tier_compare(kr_df: pd.DataFrame, gl_df: pd.DataFrame, tier_key: st
     ax.set_xticklabels(labels, fontsize=9, rotation=0)
     ax.set_ylabel(f"{TIER_LABELS[tier_key]} 보유 공고 비율 (%)", fontsize=11)
     ax.set_title(f"RQ5-C: 직무 × {TIER_LABELS[tier_key]} — 한국 vs 글로벌\n"
-                 "(한국 2026-05 vs 글로벌 2024-04, 직무별 % 공고)", fontsize=13)
+                 "한국 2026-05 활성공고 vs 글로벌 2024-04 LinkedIn 단면 (~24개월 시차)\n"
+                 "※ 격차는 한국 진보가 아닌 시점·시장·관행의 결합 효과 — '관측된 격차'", fontsize=11)
     ax.legend(loc="upper right", fontsize=11)
     ax.set_ylim(0, max(cmp[["kr_rate", "gl_rate"]].values.max() * 1.3, 5))
     ax.grid(axis="y", alpha=0.3)
@@ -289,8 +340,9 @@ def rq5_key_tokens_gap(kr_share: pd.Series, gl_share: pd.Series) -> None:
         ax.text(r["gap"] + (1 if r["gap"] >= 0 else -1), bar.get_y() + bar.get_height()/2,
                 f"{sign}{r['gap']:.1f}pp  (KR {r['kr']:.1f} · GL {r['gl']:.1f})",
                 va="center", ha="left" if r["gap"] >= 0 else "right", fontsize=9)
-    ax.set_title("RQ5-D: 핵심 토큰의 국내·글로벌 격차 (한국 - 글로벌, pp 단위)\n"
-                 "양수 = 한국 우세 · 음수 = 한국 lag (글로벌 우세)", fontsize=12)
+    ax.set_title("RQ5-D: 핵심 토큰의 국내·글로벌 관측 격차 (한국 - 글로벌, pp)\n"
+                 "한국 2026-05 vs 글로벌 2024-04 (~24개월 시차) — 양/음수는 채용 요건 명시 빈도 차이일 뿐,\n"
+                 "도구·역량 실 도입률은 별도 검증 필요 (Claude Code 2024-06 출시는 글로벌 데이터 이후)", fontsize=11)
     ax.set_xlabel("격차 (pp · 양수 = 한국 우세)")
 
     import matplotlib.patches as mpatches
@@ -338,7 +390,7 @@ if __name__ == "__main__":
         gl_tier  = tier_share(gl_df)
 
         rq5_quadrant(kr_share, gl_share, top_n=40)
-        rq5_tier_compare(kr_tier, gl_tier)
+        rq5_tier_compare(kr_df, gl_df)
         rq5_role_tier_compare(kr_df, gl_df, "tier_a_coding_tool")
         rq5_role_tier_compare(kr_df, gl_df, "tier_c_ml_skill")
         rq5_key_tokens_gap(kr_share, gl_share)
