@@ -5,6 +5,10 @@
   "mobile": ["Android", "iOS", "Flutter", "React Native"],
   "database": ["MySQL", "PostgreSQL", "MongoDB", "Oracle", "Redis", "Elasticsearch", "MariaDB"],
   "cloud_infra": ["AWS", "Azure", "GCP", "Docker", "Kubernetes", "Linux", "Nginx", "Terraform", "Jenkins", "Kafka", "Airflow"],
-  "ai_data": ["AI", "Machine Learning", "Deep Learning", "LLM", "NLP", "Computer Vision", "PyTorch", "TensorFlow", "Pandas", "NumPy", "scikit-learn", "Spark", "Hadoop"],
+  "data_eng": ["Pandas", "NumPy", "scikit-learn", "Spark", "Hadoop"],
+  "ai_coding_tool": ["GitHub Copilot", "Copilot", "Cursor", "Claude Code", "Windsurf", "Devin", "Aider", "Codex", "Antigravity"],
+  "ai_model_platform": ["ChatGPT", "GPT-4", "GPT", "Claude", "Gemini", "OpenAI", "Anthropic", "Llama", "Mistral"],
+  "ai_ml_skill": ["LLM", "RAG", "Fine-tuning", "Embedding", "Vector DB", "Hugging Face", "Transformers", "MLOps", "Machine Learning", "Deep Learning", "NLP", "Computer Vision", "PyTorch", "TensorFlow"],
+  "ai_generic": ["AI"],
   "collaboration": ["Git", "GitHub", "GitLab", "Jira", "REST API", "GraphQL"]
 }
