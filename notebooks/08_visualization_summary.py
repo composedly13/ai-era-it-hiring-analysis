@@ -24,7 +24,10 @@ EXPECTED_FIGURES = {
     "kr_top_skills_by_role.png":      "RQ1-G: 직무군별 상위 7 스킬",
     "kr_role_x_ai_tier.png":          "RQ1-H: 직무 × AI 4-tier 히트맵 (RQ4/5 핵심 자료)",
     # ---- RQ2 LinkedIn (04 노트북, 02 머지 후) ----
-    "linkedin_top_skills.png":        "RQ2: LinkedIn 글로벌 상위 기술스택",
+    "linkedin_top_skills.png":        "RQ2-A: LinkedIn 글로벌 상위 기술스택",
+    "linkedin_ai_tier_breakdown.png": "RQ2-B: 글로벌 AI 4-tier 보유율 (중복 허용)",
+    "linkedin_ai_exclusive_mode.png": "RQ2-B-2: 글로벌 AI 사용 모드 (상호배타)",
+    "linkedin_role_x_ai_tier.png":    "RQ2-H: 글로벌 직무 × AI 4-tier 히트맵",
     # ---- RQ3 뉴스 (04 노트북, 01 머지 후) ----
     "news_ai_trend.png":              "RQ3: 뉴스 AI 키워드 월별 언급률 시계열",
     "wc_news_before.png":             "WordCloud — 뉴스 before ChatGPT",
@@ -36,7 +39,11 @@ EXPECTED_FIGURES = {
     "confusion_matrix.png":           "직무군 분류 Confusion Matrix",
     # ---- RQ4·RQ5 비교 (07 노트북) ----
     "rq4_gap_index.png":              "RQ4a: 담론 vs 현실 간극지수 (Spearman·순위차)",
-    "rq5_domestic_vs_global.png":     "RQ5: 국내 vs 글로벌 기술스택 비교",
+    "rq5_quadrant.png":               "RQ5-A: 국내 vs 글로벌 사분면 (% × %)",
+    "rq5_ai_tier_compare.png":        "RQ5-B: AI 4-tier 한국 vs 글로벌 비교",
+    "rq5_role_x_tier_a_coding_tool.png": "RQ5-C: 직무 × Tier A (코딩 도구) 한·글 비교",
+    "rq5_role_x_tier_c_ml_skill.png": "RQ5-C': 직무 × Tier C (ML 역량) 한·글 비교",
+    "rq5_key_tokens_gap.png":         "RQ5-D: 핵심 토큰 격차 (한국 - 글로벌, pp)",
 }
 
 

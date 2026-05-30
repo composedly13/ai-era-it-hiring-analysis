@@ -440,25 +440,161 @@ def rq1_role_x_ai_tier() -> None:
 
 
 # ---------------------------------------------------------------------------
-# RQ2. LinkedIn 상위 기술스택 (글로벌)
+# RQ2. LinkedIn 글로벌 분석 — A 상위스킬 / B 4-tier 보유율 / B-2 상호배타 / H 직무×Tier
 # ---------------------------------------------------------------------------
-def rq2_linkedin_top_skills() -> None:
+def _load_linkedin() -> pd.DataFrame | None:
     if not os.path.exists(LINKEDIN_PATH):
         print(f"[RQ2] 스킵 — {LINKEDIN_PATH} 없음 (02 미실행)")
+        return None
+    return pd.read_csv(LINKEDIN_PATH)
+
+
+def rq2_top_skills() -> None:
+    df = _load_linkedin()
+    if df is None:
         return
-    df = pd.read_csv(LINKEDIN_PATH)
-    col = "tech_tokens" if "tech_tokens" in df.columns else "skills"
-    freq = token_frequency(load_token_lists(df, col))
+    token_lists = load_token_lists(df, "skills")
+    freq = token_frequency(token_lists)
+    print(f"[RQ2-A] 글로벌 LinkedIn {len(df):,}건 (2024-04 단면) · 유니크 스킬 {len(freq):,}개 · "
+          f"상위 5 → {freq.head(5).to_dict()}")
 
     top20 = freq.head(20)
-    fig, ax = plt.subplots(figsize=(10, 7))
-    top20[::-1].plot(kind="barh", ax=ax, color="#4c72b0")
-    ax.set_title("RQ2: 글로벌 IT 채용공고 상위 기술스택 (LinkedIn 2023–24)", fontsize=13)
+    colors = [CAT_COLORS[category_of(s)] for s in top20.index]
+    fig, ax = plt.subplots(figsize=(11, 7))
+    bars = ax.barh(top20.index[::-1], top20.values[::-1], color=colors[::-1])
+    ax.set_title(f"RQ2-A: 글로벌 LinkedIn 상위 20 기술스택 ({len(df):,}건 · 2024-04 단면)", fontsize=13)
     ax.set_xlabel("언급 공고 수")
+    for bar, v in zip(bars, top20.values[::-1]):
+        ax.text(v + max(top20) * 0.005, bar.get_y() + bar.get_height() / 2,
+                str(v), va="center", fontsize=9)
     plt.tight_layout()
     plt.savefig(f"{FIG_DIR}/linkedin_top_skills.png", dpi=150, bbox_inches="tight")
     plt.close(fig)
-    print("[RQ2] 저장:", f"{FIG_DIR}/linkedin_top_skills.png")
+    print("[RQ2-A] 저장:", f"{FIG_DIR}/linkedin_top_skills.png")
+
+
+def rq2_ai_tier_breakdown() -> dict:
+    df = _load_linkedin()
+    if df is None:
+        return {}
+    n_total = len(df)
+    tier_counts = {t: 0 for t in AI_TIERS}
+    for s in df["skills"].fillna(""):
+        tokens = set(s.split("|")) if s else set()
+        for tier_key in AI_TIERS:
+            if tokens & set(AI_TIERS[tier_key]):
+                tier_counts[tier_key] += 1
+
+    fig, ax = plt.subplots(figsize=(11, 5.5))
+    labels = [TIER_LABELS[t] for t in AI_TIERS]
+    counts = [tier_counts[t] for t in AI_TIERS]
+    colors = [TIER_COLORS[t] for t in AI_TIERS]
+    bars = ax.barh(labels[::-1], counts[::-1], color=colors[::-1])
+    ax.set_title(f"RQ2-B: 글로벌 AI 4-tier 보유율 (중복 허용 · LinkedIn {n_total:,}건)", fontsize=13)
+    ax.set_xlabel("해당 tier 토큰 1개 이상 포함한 공고 수")
+    for bar, c in zip(bars, counts[::-1]):
+        ax.text(c + max(counts) * 0.005, bar.get_y() + bar.get_height() / 2,
+                f"{c}건 ({c/n_total*100:.1f}%)", va="center", fontsize=10)
+    plt.tight_layout()
+    plt.savefig(f"{FIG_DIR}/linkedin_ai_tier_breakdown.png", dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print("[RQ2-B] 저장:", f"{FIG_DIR}/linkedin_ai_tier_breakdown.png")
+    for t, c in tier_counts.items():
+        print(f"  {TIER_LABELS[t]:30s} {c:5d}건 ({c/n_total*100:5.1f}%) [중복 허용]")
+    return tier_counts
+
+
+def rq2_ai_exclusive_mode() -> dict:
+    df = _load_linkedin()
+    if df is None:
+        return {}
+    n_total = len(df)
+    members_by_tier = {t: set(AI_TIERS[t]) for t in AI_TIERS}
+
+    mode_counts = {"Tier A · AI 코딩 도구": 0, "Tier B · AI 모델·플랫폼": 0,
+                   "Tier C · AI/ML 직무 역량": 0, "Tier D · 모호한 'AI'만": 0,
+                   "AI 미언급": 0}
+    mode_colors = {"Tier A · AI 코딩 도구": TIER_COLORS["tier_a_coding_tool"],
+                   "Tier B · AI 모델·플랫폼": TIER_COLORS["tier_b_model_platform"],
+                   "Tier C · AI/ML 직무 역량": TIER_COLORS["tier_c_ml_skill"],
+                   "Tier D · 모호한 'AI'만":   TIER_COLORS["tier_d_generic"],
+                   "AI 미언급": "#e0e0e0"}
+
+    for s in df["skills"].fillna(""):
+        tokens = set(s.split("|")) if s else set()
+        if tokens & members_by_tier["tier_a_coding_tool"]:
+            mode_counts["Tier A · AI 코딩 도구"] += 1
+        elif tokens & members_by_tier["tier_b_model_platform"]:
+            mode_counts["Tier B · AI 모델·플랫폼"] += 1
+        elif tokens & members_by_tier["tier_c_ml_skill"]:
+            mode_counts["Tier C · AI/ML 직무 역량"] += 1
+        elif tokens & members_by_tier["tier_d_generic"]:
+            mode_counts["Tier D · 모호한 'AI'만"] += 1
+        else:
+            mode_counts["AI 미언급"] += 1
+    assert sum(mode_counts.values()) == n_total, "상호배타 분류 합계 불일치"
+
+    fig, ax = plt.subplots(figsize=(11, 5.5))
+    labels = list(mode_counts.keys())
+    counts = list(mode_counts.values())
+    colors = [mode_colors[l] for l in labels]
+    bars = ax.barh(labels[::-1], counts[::-1], color=colors[::-1])
+    ax.set_title(f"RQ2-B-2: 글로벌 AI 사용 모드 (상호배타 · LinkedIn {n_total:,}건 · 2024-04)",
+                 fontsize=13)
+    ax.set_xlabel("공고 수 (합계 = 총 공고 수)")
+    for bar, c in zip(bars, counts[::-1]):
+        ax.text(c + max(counts) * 0.005, bar.get_y() + bar.get_height() / 2,
+                f"{c}건 ({c/n_total*100:.1f}%)", va="center", fontsize=10)
+    plt.tight_layout()
+    plt.savefig(f"{FIG_DIR}/linkedin_ai_exclusive_mode.png", dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print("[RQ2-B-2] 저장:", f"{FIG_DIR}/linkedin_ai_exclusive_mode.png  [상호배타 검증 통과]")
+    for m, c in mode_counts.items():
+        print(f"  {m:30s} {c:5d}건 ({c/n_total*100:5.1f}%)")
+    return mode_counts
+
+
+def rq2_role_x_ai_tier() -> None:
+    df = _load_linkedin()
+    if df is None:
+        return
+    roles = [r for r in ROLE_ORDER if r not in ("game",)]  # game 표본 적어 제외
+    tiers = list(AI_TIERS.keys())
+
+    matrix = pd.DataFrame(0.0, index=[ROLE_LABELS[r] for r in roles],
+                           columns=[TIER_LABELS[t] for t in tiers])
+    for role in roles:
+        sub = df[df["role"] == role]
+        n = len(sub)
+        if n == 0:
+            continue
+        for tier_key in tiers:
+            members = set(AI_TIERS[tier_key])
+            count = sub["skills"].fillna("").apply(
+                lambda s: bool(set(s.split("|")) & members) if s else False
+            ).sum()
+            matrix.loc[ROLE_LABELS[role], TIER_LABELS[tier_key]] = count / n * 100
+
+    fig, ax = plt.subplots(figsize=(11, 7))
+    im = ax.imshow(matrix.values, cmap="YlOrRd", aspect="auto", vmin=0, vmax=100)
+    ax.set_xticks(range(len(tiers)))
+    ax.set_xticklabels(matrix.columns, rotation=15, ha="right", fontsize=10)
+    ax.set_yticks(range(len(roles)))
+    ax.set_yticklabels(matrix.index, fontsize=10)
+    ax.set_title(f"RQ2-H: [글로벌] 직무군 × AI 4-tier (% 공고 · LinkedIn 2024-04)", fontsize=13)
+    for i in range(len(roles)):
+        for j in range(len(tiers)):
+            v = matrix.values[i, j]
+            color = "white" if v > 55 else "black"
+            ax.text(j, i, f"{v:.0f}%", ha="center", va="center",
+                    color=color, fontsize=10, fontweight="bold")
+    plt.colorbar(im, ax=ax, label="해당 tier 보유 공고 비율 (%)")
+    plt.tight_layout()
+    plt.savefig(f"{FIG_DIR}/linkedin_role_x_ai_tier.png", dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print("[RQ2-H] 저장:", f"{FIG_DIR}/linkedin_role_x_ai_tier.png")
+    print("\n매트릭스 (% 공고):")
+    print(matrix.round(1).to_string())
 
 
 # ---------------------------------------------------------------------------
@@ -499,5 +635,8 @@ if __name__ == "__main__":
     rq1_role_distribution()
     rq1_top_skills_by_role()
     rq1_role_x_ai_tier()
-    rq2_linkedin_top_skills()
+    rq2_top_skills()
+    rq2_ai_tier_breakdown()
+    rq2_ai_exclusive_mode()
+    rq2_role_x_ai_tier()
     rq3_news_timeseries()
