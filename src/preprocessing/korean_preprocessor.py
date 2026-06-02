@@ -19,14 +19,39 @@ def remove_html(text: str) -> str:
     return re.sub(r"<[^>]+>", " ", text)
 
 
+def clean_text(text: str) -> str:
+    """HTML 제거 + 특수문자 정리. 기술명 보존 위해 +, #, . 은 남긴다."""
+    text = remove_html(text)
+    text = re.sub(r"[^0-9A-Za-z가-힣\+\#\.\s]", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _ensure_tagger(tagger):
+    if tagger is None:
+        from konlpy.tag import Okt
+        return Okt()
+    return tagger
+
+
 def extract_nouns(text: str, tagger=None) -> list[str]:
-    """KoNLPy tagger로 명사 추출 후 불용어 제거."""
-    # TODO: 구현 — tagger는 외부에서 주입(Okt / Mecab)
-    raise NotImplementedError
+    """KoNLPy tagger로 한글 명사 추출 후 불용어·1글자 제거."""
+    if not isinstance(text, str) or not text.strip():
+        return []
+    tagger = _ensure_tagger(tagger)
+    nouns = tagger.nouns(clean_text(text))
+    return [n for n in nouns if len(n) > 1 and n not in JOB_STOPWORDS]
 
 
 def preprocess(text: str, tagger=None) -> list[str]:
-    """전체 전처리 파이프라인."""
-    text = remove_html(text)
-    # TODO: 특수문자 정제, 명사 추출, 불용어 제거
-    raise NotImplementedError
+    """전체 전처리 — 한글 명사 + 영문 기술토큰(AI·Python 등) 보존.
+
+    Okt.nouns는 영문을 명사로 잡지 않으므로 영문 토큰은 정규식으로 별도 추출한다.
+    """
+    if not isinstance(text, str) or not text.strip():
+        return []
+    cleaned = clean_text(text)
+    tagger = _ensure_tagger(tagger)
+    nouns = [n for n in tagger.nouns(cleaned) if len(n) > 1]
+    eng = re.findall(r"[A-Za-z][A-Za-z0-9\+\#\.]{1,}", cleaned)
+    toks = nouns + eng
+    return [t for t in toks if t not in JOB_STOPWORDS]

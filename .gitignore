@@ -34,6 +34,9 @@ outputs/models/*.bin
 outputs/rq4_*.csv
 outputs/rq5_*.csv
 
+# Claude Code 세션 디렉터리
+.claude/
+
 # API keys / secrets
 .env
 *.env

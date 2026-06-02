@@ -362,14 +362,62 @@ def rq5_key_tokens_gap(kr_share: pd.Series, gl_share: pd.Series) -> None:
 
 
 # ---------------------------------------------------------------------------
-# (RQ4은 뉴스 데이터 도착 후 작동)
+# RQ4a. 담론(뉴스) vs 현실(국내공고) 기술스택 간극 — Spearman 순위상관 + 사분면
 # ---------------------------------------------------------------------------
+Q4_COLOR = {
+    "담론 과잉(뉴스>공고)":   "#d62728",
+    "조용한 핵심(공고>뉴스)": "#1f77b4",
+    "공통":                   "#2ca02c",
+}
+
+
 def rq4_news_vs_jobs(kr_df: pd.DataFrame) -> None:
+    """뉴스 담론과 실제 공고의 기술토큰 순위 비교.
+
+    Guardrail #1(공정 비교): 공고가 2026 스냅샷이므로 뉴스도 2026만 사용.
+    Guardrail #2: 기술/역량 사전 토큰만 (담론 프레임어는 RQ4b·별도).
+    Guardrail #3: 토큰 빈도 순위만 비교 (한↔영 토픽 직접 비교 아님 — 둘 다 국내·한국어).
+    """
     if not os.path.exists(NEWS_PATH):
         print(f"[RQ4] 스킵 — {NEWS_PATH} 없음 (01 미실행)")
         return
-    # TODO: 뉴스 수집 후 활성화
-    print("[RQ4] 뉴스 데이터 도착 시 활성화")
+    news = pd.read_csv(NEWS_PATH, parse_dates=["발행일"])
+    news_2026 = news[news["발행일"].dt.year == 2026]
+    print(f"[RQ4] 뉴스 {len(news):,}건 중 2026년 {len(news_2026):,}건 사용 (공고와 동일 시점)")
+
+    news_lists = news_2026["tech_tokens"].apply(_parse_skills)
+    news_freq = skill_frequency(news_lists)
+    job_freq  = skill_frequency(kr_df["tokens"])
+
+    df, rho, p = gap_table(news_freq, job_freq, top_n=40)
+    df.to_csv("outputs/rq4_gap_table.csv", encoding="utf-8-sig")
+
+    fig, ax = plt.subplots(figsize=(11, 10))
+    for q, sub in df.groupby("quadrant"):
+        ax.scatter(sub["news_rank"], sub["job_rank"], s=90, alpha=0.75,
+                   c=Q4_COLOR.get(q, "#999999"), label=q, edgecolors="white", linewidths=0.8)
+    lim = max(df["news_rank"].max(), df["job_rank"].max()) + 2
+    ax.plot([0, lim], [0, lim], "--", color="gray", alpha=0.5, label="순위 일치선")
+    for sk, r in df.iterrows():
+        ax.annotate(sk, (r["news_rank"], r["job_rank"]), fontsize=8,
+                    xytext=(3, 3), textcoords="offset points")
+
+    ax.set_xlabel("← 뉴스 담론 순위 (1=가장 많이 언급)", fontsize=11)
+    ax.set_ylabel("← 국내공고 순위 (1=가장 많이 요구)", fontsize=11)
+    ax.set_title("RQ4a: 담론(뉴스) vs 현실(국내공고) 기술스택 간극\n"
+                 f"2026 뉴스 {len(news_2026):,}건 × 국내공고 {len(kr_df):,}건 · "
+                 f"Spearman ρ={rho:.2f} (p={p:.2g})\n"
+                 "※ 우하단=담론만 뜨거움, 좌상단=조용한 핵심(현장은 쓰는데 담론은 조용)", fontsize=11)
+    ax.invert_xaxis(); ax.invert_yaxis()
+    ax.legend(loc="lower left", fontsize=9, framealpha=0.9)
+    ax.grid(alpha=0.3)
+    plt.tight_layout()
+    plt.savefig(f"{FIG_DIR}/rq4_gap_index.png", dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"[RQ4a] 저장: {FIG_DIR}/rq4_gap_index.png · Spearman ρ={rho:.3f} (p={p:.3g})")
+    for q in ["담론 과잉(뉴스>공고)", "조용한 핵심(공고>뉴스)"]:
+        toks = list(df[df.quadrant == q].index[:8])
+        print(f"  [{q}] {toks}")
 
 
 # ---------------------------------------------------------------------------

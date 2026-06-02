@@ -607,18 +607,35 @@ def rq3_news_timeseries() -> None:
     df = pd.read_csv(NEWS_PATH, parse_dates=["발행일"])
     df_monthly = df.set_index("발행일").resample("M").size().rename("total")
 
-    ai_series = monthly_keyword_count(df, date_col="발행일", keyword_col="text", keyword="AI")
+    # AI 언급 = tech_tokens(canonical)에 "AI" 포함 (substring 오탐 방지)
+    ai_series = monthly_keyword_count(df, date_col="발행일", keyword_col="tech_tokens", keyword="AI")
     ratio = (ai_series / df_monthly * 100).fillna(0)
 
     fig, axes = plt.subplots(2, 1, figsize=(12, 7), sharex=True)
-    df_monthly.plot(ax=axes[0], title="월별 뉴스 기사 수 (IT 채용 관련)", color="steelblue")
+    df_monthly.plot(ax=axes[0], title="월별 뉴스 기사 수 (개발자 채용 담론)", color="steelblue")
     ratio.plot(ax=axes[1], title="AI 키워드 월별 언급률 (%)", color="tomato")
-    axes[1].axvline("2022-11-01", color="gray", linestyle="--", label="ChatGPT 출시")
+    axes[1].axvline(pd.Timestamp("2022-11-01"), color="gray", linestyle="--", label="ChatGPT 출시")
     axes[1].legend()
     plt.tight_layout()
     plt.savefig(f"{FIG_DIR}/news_ai_trend.png", dpi=150, bbox_inches="tight")
     plt.close(fig)
     print("[RQ3] 저장:", f"{FIG_DIR}/news_ai_trend.png")
+    print(f"  AI 언급률: before(~2022.10) {ratio[ratio.index < '2022-11-01'].mean():.1f}% "
+          f"→ after {ratio[ratio.index >= '2022-11-01'].mean():.1f}%")
+
+
+def rq3_news_wordclouds() -> None:
+    """뉴스 담론 키워드 워드클라우드 — ChatGPT 출시 before/after."""
+    if not os.path.exists(NEWS_PATH):
+        print(f"[RQ3·WC] 스킵 — {NEWS_PATH} 없음")
+        return
+    df = pd.read_csv(NEWS_PATH)
+    for period in ["before", "after"]:
+        sub = df[df["period"] == period]
+        freq = token_frequency(load_token_lists(sub, "tokens"))
+        generate_wordcloud(freq.to_dict(), title=f"뉴스 담론 ({period} ChatGPT)",
+                           save_path=f"{FIG_DIR}/wc_news_{period}.png")
+        print(f"[RQ3·WC] 저장: {FIG_DIR}/wc_news_{period}.png ({len(sub):,}건)")
 
 
 # ---------------------------------------------------------------------------
@@ -640,3 +657,4 @@ if __name__ == "__main__":
     rq2_ai_exclusive_mode()
     rq2_role_x_ai_tier()
     rq3_news_timeseries()
+    rq3_news_wordclouds()

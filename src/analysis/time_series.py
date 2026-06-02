@@ -13,9 +13,17 @@ CHATGPT_LAUNCH = "2022-11-01"
 
 
 def monthly_keyword_count(df: pd.DataFrame, date_col: str, keyword_col: str, keyword: str) -> pd.Series:
-    """월별 특정 키워드 언급 건수 반환."""
-    # TODO: 구현
-    raise NotImplementedError
+    """월별, keyword_col(파이프 구분 canonical 토큰)에 keyword 토큰을 포함한 기사 수.
+
+    substring이 아닌 정확 토큰 매칭 — "AI"가 영어 단어 속 "ai"(email·train 등)에
+    오탐되는 것을 방지. keyword_col 은 extract_skills 결과("AI|Python|...") 가정.
+    """
+    s = df[[date_col, keyword_col]].copy()
+    s[date_col] = pd.to_datetime(s[date_col], errors="coerce")
+    mask = s[keyword_col].apply(
+        lambda v: isinstance(v, str) and keyword in v.split("|")
+    )
+    return s[mask].dropna(subset=[date_col]).set_index(date_col).resample("M").size()
 
 
 def before_after_comparison(df: pd.DataFrame, date_col: str, cutoff: str = CHATGPT_LAUNCH) -> dict:
