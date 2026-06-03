@@ -28,10 +28,17 @@ EXPECTED_FIGURES = {
     "linkedin_ai_tier_breakdown.png": "RQ2-B: 글로벌 AI 4-tier 보유율 (중복 허용)",
     "linkedin_ai_exclusive_mode.png": "RQ2-B-2: 글로벌 AI 사용 모드 (상호배타)",
     "linkedin_role_x_ai_tier.png":    "RQ2-H: 글로벌 직무 × AI 4-tier 히트맵",
-    # ---- RQ3 뉴스 (04 노트북, 01 머지 후) ----
-    "news_ai_trend.png":              "RQ3: 뉴스 AI 키워드 월별 언급률 시계열",
-    "wc_news_before.png":             "WordCloud — 뉴스 before ChatGPT",
-    "wc_news_after.png":              "WordCloud — 뉴스 after ChatGPT",
+    # ---- RQ3 뉴스 담론 시계열 (04 노트북, 01 머지 후) — 총 10개 차트 ----
+    "news_monthly_volume.png":        "RQ3-A: 월별 뉴스 기사 수 추세 (×2배 증가)",
+    "news_ai_tier_trend.png":         "RQ3-B: AI 4-tier 월별 언급률 (3개월 이동평균)",
+    "news_ai_tool_emergence.png":     "RQ3-C: 주요 AI 도구·모델 시계열 (ChatGPT·GPT-4·Claude·Copilot·Gemini)",
+    "news_framing_trend.png":         "RQ3-D: 채용 담론 프레임 (위기·대체·재편·기회) 월별 강도",
+    "news_period_wordcloud.png":      "RQ3-E: 뉴스 본문 토큰 빈도 — ChatGPT 출시 전·후",
+    "news_yearly_tier.png":           "RQ3-F: 연도별 AI 4-tier 보유율 (요약 막대)",
+    "news_role_trend.png":            "RQ3-G: 직무별 11개 월별 언급률 (2패널 — AI/인프라계 · 웹·앱 개발)",
+    "news_role_groups.png":           "RQ3-G-2: 직무 그룹 묶음 시계열 (웹·앱·인프라·AI/ML)",
+    "news_role_x_tier.png":           "RQ3-H: 직무 × AI Tier 결합 매트릭스 (before vs after)",
+    "news_career_stage_trend.png":    "RQ3-I: 신입·주니어·경력·시니어 채용 담론 시계열",
     # ---- 수업 외 모델링 (05 노트북) ----
     "bertopic_topics.html":           "BERTopic 토픽 분포 (수업 외)",
     "umap_clusters.png":              "UMAP 직무군 산점도 (수업 외)",
