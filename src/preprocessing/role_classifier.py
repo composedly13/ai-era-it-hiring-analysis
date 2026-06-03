@@ -110,3 +110,16 @@ def classify_record(source: str, title: str, jumpit_categories: str | None = Non
         if role:
             return role
     return classify_from_title(title)
+
+
+# ─── 뉴스용 멀티라벨 ──────────────────────────────────────────────
+def match_all_roles(text: str) -> set[str]:
+    """텍스트에서 매칭되는 모든 직무 라벨 집합 (뉴스 멀티라벨용).
+
+    채용공고와 달리 한 기사가 여러 직무를 동시에 언급할 수 있으므로
+    매칭 우선순위를 두지 않고 모든 매칭 라벨을 반환.
+    'other'는 반환에서 제외 (의미 있는 매칭만 캐치).
+    """
+    if not isinstance(text, str) or not text:
+        return set()
+    return {role for role, pat in _COMPILED if pat.search(text)}
