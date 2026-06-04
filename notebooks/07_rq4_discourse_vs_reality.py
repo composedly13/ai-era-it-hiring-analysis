@@ -362,14 +362,161 @@ def rq5_key_tokens_gap(kr_share: pd.Series, gl_share: pd.Series) -> None:
 
 
 # ---------------------------------------------------------------------------
-# (RQ4은 뉴스 데이터 도착 후 작동)
+# RQ4. 담론(뉴스) vs 현실(국내공고) 간극
 # ---------------------------------------------------------------------------
-def rq4_news_vs_jobs(kr_df: pd.DataFrame) -> None:
+# 뉴스 전처리 CSV 로더 — #7 스키마(date·skills·tier_*) 우선, 구 스키마(발행일·tech_tokens) 호환.
+def _split_news_tokens(value) -> list[str]:
+    """뉴스 토큰 문자열 → list. 구분자 ';'(#7) / '|'(구 스키마) / 공백 자동 인식."""
+    if pd.isna(value):
+        return []
+    s = str(value)
+    for sep in (";", "|"):
+        if sep in s:
+            return [t.strip() for t in s.split(sep) if t.strip()]
+    return [t for t in s.split() if t] if s else []
+
+
+def load_news_processed() -> pd.DataFrame | None:
+    """data/processed/news/news_processed.csv 로드 + year·news_tokens 정규화.
+
+    Guardrail #1(공정 비교): year 컬럼으로 2026만 골라 공고(2026 스냅샷)와 동일 시점 비교.
+    Guardrail #3: news_tokens 는 기술스택 사전(extract_skills) canonical 토큰 — 공고와 동일 단위.
+    """
     if not os.path.exists(NEWS_PATH):
         print(f"[RQ4] 스킵 — {NEWS_PATH} 없음 (01 미실행)")
+        return None
+    news = pd.read_csv(NEWS_PATH)
+
+    # 연도 컬럼 확보 (date / 발행일 어느 쪽이든)
+    if "year" not in news.columns:
+        date_col = next((c for c in ("date", "발행일") if c in news.columns), None)
+        if date_col is None:
+            raise KeyError("뉴스 CSV에 year·date·발행일 컬럼이 모두 없습니다")
+        news["year"] = pd.to_datetime(news[date_col], errors="coerce").dt.year
+
+    # 기술토큰 컬럼 확보 (skills[#7] / tech_tokens[구])
+    tok_col = next((c for c in ("skills", "tech_tokens") if c in news.columns), None)
+    if tok_col is None:
+        raise KeyError("뉴스 CSV에 skills·tech_tokens 컬럼이 모두 없습니다")
+    news["news_tokens"] = news[tok_col].apply(_split_news_tokens)
+    return news
+
+
+Q4_COLOR = {
+    "담론 과잉(뉴스>공고)":   "#d62728",
+    "조용한 핵심(공고>뉴스)": "#1f77b4",
+    "공통":                   "#2ca02c",
+}
+
+
+def rq4_news_vs_jobs(kr_df: pd.DataFrame) -> None:
+    """RQ4a. 뉴스 담론 vs 실제 공고의 기술토큰 순위 비교 — Spearman + 사분면.
+
+    우하단=담론만 뜨거움(뉴스>공고), 좌상단=조용한 핵심(공고는 쓰는데 담론은 조용).
+    """
+    news = load_news_processed()
+    if news is None:
         return
-    # TODO: 뉴스 수집 후 활성화
-    print("[RQ4] 뉴스 데이터 도착 시 활성화")
+    news_2026 = news[news["year"] == 2026]
+    if len(news_2026) == 0:
+        print("[RQ4a] 스킵 — 2026년 뉴스 0건")
+        return
+    print(f"[RQ4a] 뉴스 {len(news):,}건 중 2026년 {len(news_2026):,}건 사용 (공고와 동일 시점)")
+
+    news_freq = skill_frequency(news_2026["news_tokens"])
+    job_freq  = skill_frequency(kr_df["tokens"])
+
+    df, rho, p = gap_table(news_freq, job_freq, top_n=40)
+    df.to_csv("outputs/rq4_gap_table.csv", encoding="utf-8-sig")
+
+    fig, ax = plt.subplots(figsize=(11, 10))
+    for q, sub in df.groupby("quadrant"):
+        ax.scatter(sub["news_rank"], sub["job_rank"], s=90, alpha=0.75,
+                   c=Q4_COLOR.get(q, "#999999"), label=q, edgecolors="white", linewidths=0.8)
+    lim = max(df["news_rank"].max(), df["job_rank"].max()) + 2
+    ax.plot([0, lim], [0, lim], "--", color="gray", alpha=0.5, label="순위 일치선")
+    for sk, r in df.iterrows():
+        ax.annotate(sk, (r["news_rank"], r["job_rank"]), fontsize=8,
+                    xytext=(3, 3), textcoords="offset points")
+
+    ax.set_xlabel("← 뉴스 담론 순위 (1=가장 많이 언급)", fontsize=11)
+    ax.set_ylabel("← 국내공고 순위 (1=가장 많이 요구)", fontsize=11)
+    ax.set_title("RQ4a: 담론(뉴스) vs 현실(국내공고) 기술스택 간극\n"
+                 f"2026 뉴스 {len(news_2026):,}건 × 국내공고 {len(kr_df):,}건 · "
+                 f"Spearman ρ={rho:.2f} (p={p:.2g})\n"
+                 "※ 우하단=담론만 뜨거움, 좌상단=조용한 핵심(현장은 쓰는데 담론은 조용)", fontsize=11)
+    ax.invert_xaxis(); ax.invert_yaxis()
+    ax.legend(loc="lower left", fontsize=9, framealpha=0.9)
+    ax.grid(alpha=0.3)
+    plt.tight_layout()
+    plt.savefig(f"{FIG_DIR}/rq4_gap_index.png", dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"[RQ4a] 저장: {FIG_DIR}/rq4_gap_index.png · Spearman ρ={rho:.3f} (p={p:.3g})")
+    for q in ["담론 과잉(뉴스>공고)", "조용한 핵심(공고>뉴스)"]:
+        toks = list(df[df.quadrant == q].index[:8])
+        print(f"  [{q}] {toks}")
+
+
+def rq4_tier_gap(kr_df: pd.DataFrame) -> None:
+    """RQ4b. AI 4-tier 담론(뉴스 2026) vs 현실(국내공고 2026) 보유율 격차.
+
+    "뉴스는 Tier B(모델·플랫폼)를 X% 외치는데 실제 공고엔 Y%만 명시되는가?"
+    #7 전처리는 tier_a~d 컬럼을 직접 제공 → 있으면 그대로, 없으면 skills로 계산.
+    뉴스=본문 멀티라벨 언급 / 공고=요구역량 명시 — 단위가 비대칭이므로 '관측된 간극'으로 해석.
+    """
+    news = load_news_processed()
+    if news is None:
+        return
+    news_2026 = news[news["year"] == 2026]
+    if len(news_2026) == 0:
+        print("[RQ4b] 스킵 — 2026년 뉴스 0건")
+        return
+
+    tiers = list(AI_TIERS.keys())
+    # 뉴스 담론 tier 보유율 — tier_* 컬럼 직접(#7) 또는 토큰 계산(구 스키마)
+    if set(tiers).issubset(news_2026.columns):
+        news_tier = {t: news_2026[t].mean() * 100 for t in tiers}
+        src_note = "tier 컬럼 직접"
+    else:
+        news_tier = {}
+        for t in tiers:
+            members = set(AI_TIERS[t])
+            news_tier[t] = news_2026["news_tokens"].apply(
+                lambda toks: bool(set(toks) & members)).mean() * 100
+        src_note = "skills 토큰 계산"
+    job_tier = tier_share(kr_df)  # 공고 단위 보유율 dict (기존 함수 재사용)
+
+    rows = [{"tier": t, "label": TIER_LABELS[t],
+             "news": news_tier[t], "job": job_tier[t],
+             "gap": news_tier[t] - job_tier[t]} for t in tiers]
+    cmp = pd.DataFrame(rows)
+    cmp.to_csv("outputs/rq4_tier_gap.csv", encoding="utf-8-sig", index=False)
+
+    x = np.arange(len(tiers))
+    w = 0.38
+    fig, ax = plt.subplots(figsize=(13, 7))
+    ax.bar(x - w/2, cmp["news"], w, label="뉴스 담론 (2026)", color="#d62728")
+    ax.bar(x + w/2, cmp["job"],  w, label="국내공고 현실 (2026)", color="#1f77b4")
+    for i, r in cmp.iterrows():
+        ax.text(i - w/2, r["news"] + 0.5, f"{r['news']:.1f}%", ha="center", fontsize=9)
+        ax.text(i + w/2, r["job"] + 0.5, f"{r['job']:.1f}%", ha="center", fontsize=9)
+        ax.text(i, max(r["news"], r["job"]) + 3, f"Δ {r['gap']:+.1f}pp",
+                ha="center", fontsize=10, fontweight="bold",
+                color="darkred" if abs(r["gap"]) >= 5 else "gray")
+    ax.set_xticks(x)
+    ax.set_xticklabels([TIER_LABELS[t] for t in tiers], fontsize=10)
+    ax.set_ylabel("해당 tier 보유 비율 (%) — 중복 허용", fontsize=11)
+    ax.set_title("RQ4b: AI 4-tier 담론(뉴스) vs 현실(공고) 간극 — 동일 2026 시점\n"
+                 "양수 Δ = 담론 과잉(뉴스가 더 많이 호명) · 음수 Δ = 현장이 더 요구\n"
+                 "※ 뉴스=본문 멀티라벨 언급 / 공고=요구역량 명시 — '관측된 간극'으로 해석", fontsize=11)
+    ax.legend(loc="upper right", fontsize=11)
+    ax.grid(axis="y", alpha=0.3)
+    plt.tight_layout()
+    plt.savefig(f"{FIG_DIR}/rq4_tier_gap.png", dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"[RQ4b] 저장: {FIG_DIR}/rq4_tier_gap.png (뉴스 tier 출처: {src_note})")
+    for r in rows:
+        print(f"  {r['label']:24s} 뉴스 {r['news']:5.1f}% · 공고 {r['job']:5.1f}% · Δ {r['gap']:+5.1f}pp")
 
 
 # ---------------------------------------------------------------------------
@@ -396,3 +543,4 @@ if __name__ == "__main__":
         rq5_key_tokens_gap(kr_share, gl_share)
 
     rq4_news_vs_jobs(kr_df)
+    rq4_tier_gap(kr_df)
