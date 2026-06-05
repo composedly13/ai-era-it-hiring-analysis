@@ -25,7 +25,8 @@ setup_korean_font()
 
 from src.analysis.gap_index import skill_frequency, gap_table
 from src.preprocessing.tech_dictionary import AI_TIERS, get_ai_tier
-from src.preprocessing.role_classifier import ROLE_LABELS
+from src.preprocessing.role_classifier import ROLE_LABELS, match_all_roles
+from scipy.stats import spearmanr
 
 KR_PATH       = "data/processed/domestic/kr_jobs_clean.csv"
 NEWS_PATH     = "data/processed/news/news_processed.csv"
@@ -520,6 +521,268 @@ def rq4_tier_gap(kr_df: pd.DataFrame) -> None:
 
 
 # ---------------------------------------------------------------------------
+# RQ4-c. 담론 과잉 / 조용한 핵심 top-N 막대 (산점도 보완)
+# ---------------------------------------------------------------------------
+def rq4_top_gap_bars(kr_df: pd.DataFrame, top_k: int = 15) -> None:
+    """뉴스 담론과 공고 현실의 순위 격차를 막대로 — 산점도가 한눈에 안 들어와서 보완."""
+    news = load_news_processed()
+    if news is None:
+        return
+    news_2026 = news[news["year"] == 2026]
+    if len(news_2026) == 0:
+        print("[RQ4c] 스킵 — 2026년 뉴스 0건")
+        return
+
+    news_freq = skill_frequency(news_2026["news_tokens"])
+    job_freq  = skill_frequency(kr_df["tokens"])
+    # 양쪽 모두에 등장하는 토큰만 — 한쪽 0인 noise 컷
+    common = [t for t in news_freq.index if t in job_freq.index]
+    df = pd.DataFrame(index=common)
+    df["news_freq"] = news_freq.reindex(common)
+    df["job_freq"]  = job_freq.reindex(common)
+    df["news_rank"] = df["news_freq"].rank(ascending=False, method="min")
+    df["job_rank"]  = df["job_freq"].rank(ascending=False, method="min")
+    df["delta_rank"] = df["news_rank"] - df["job_rank"]  # +=조용한핵심, -=담론과잉
+    # 너무 마이너 토큰 제외 — 양쪽 top 100 안에 들어야 의미 있음
+    df = df[(df["news_rank"] <= 100) | (df["job_rank"] <= 100)]
+    df.to_csv("outputs/rq4_top_gap.csv", encoding="utf-8-sig")
+
+    discourse_only = df.sort_values("delta_rank", ascending=True).head(top_k)  # 가장 음수 → 담론 과잉
+    quiet_core     = df.sort_values("delta_rank", ascending=False).head(top_k)  # 가장 양수 → 조용한 핵심
+
+    fig, axes = plt.subplots(1, 2, figsize=(15, 8))
+
+    # 좌: 담론 과잉 (뉴스>공고)
+    ax = axes[0]
+    y = np.arange(len(discourse_only))
+    ax.barh(y, -discourse_only["delta_rank"], color="#d62728", edgecolor="white")
+    ax.set_yticks(y)
+    ax.set_yticklabels(discourse_only.index, fontsize=10)
+    ax.invert_yaxis()
+    for i, (sk, r) in enumerate(discourse_only.iterrows()):
+        ax.text(-r["delta_rank"] + 1, i,
+                f"뉴스 #{int(r.news_rank)} → 공고 #{int(r.job_rank)}",
+                va="center", fontsize=8, color="#444")
+    ax.set_xlabel("순위 격차 (뉴스가 더 상위 = 담론 과잉)", fontsize=10)
+    ax.set_title(f"담론 과잉 Top {top_k}\n뉴스 담론은 강하지만 공고 요구는 약함", fontsize=11)
+    ax.grid(axis="x", alpha=0.3)
+
+    # 우: 조용한 핵심 (공고>뉴스)
+    ax = axes[1]
+    y = np.arange(len(quiet_core))
+    ax.barh(y, quiet_core["delta_rank"], color="#1f77b4", edgecolor="white")
+    ax.set_yticks(y)
+    ax.set_yticklabels(quiet_core.index, fontsize=10)
+    ax.invert_yaxis()
+    for i, (sk, r) in enumerate(quiet_core.iterrows()):
+        ax.text(r["delta_rank"] + 1, i,
+                f"뉴스 #{int(r.news_rank)} → 공고 #{int(r.job_rank)}",
+                va="center", fontsize=8, color="#444")
+    ax.set_xlabel("순위 격차 (공고가 더 상위 = 조용한 핵심)", fontsize=10)
+    ax.set_title(f"조용한 핵심 Top {top_k}\n현장은 요구하는데 담론은 조용", fontsize=11)
+    ax.grid(axis="x", alpha=0.3)
+
+    fig.suptitle("RQ4c: 담론 vs 현실 — 순위 격차 Top 토큰 (2026 뉴스 vs 공고)\n"
+                 "양쪽 top 100 진입 토큰 한정 · 빨강=뉴스만 뜨거움 · 파랑=공고만 요구",
+                 fontsize=12)
+    plt.tight_layout()
+    plt.savefig(f"{FIG_DIR}/rq4_top_gap_bars.png", dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"[RQ4c] 저장: {FIG_DIR}/rq4_top_gap_bars.png")
+    print(f"  [담론 과잉 top 5] {list(discourse_only.index[:5])}")
+    print(f"  [조용한 핵심 top 5] {list(quiet_core.index[:5])}")
+
+
+# ---------------------------------------------------------------------------
+# RQ4-d. 시점별 Spearman ρ — 담론과 현실은 시간이 갈수록 가까워졌나?
+# ---------------------------------------------------------------------------
+def rq4_period_spearman(kr_df: pd.DataFrame) -> None:
+    """before(~2022-11) / after(2022-12~) / 2026 — 시점별 뉴스 담론 ↔ 공고 Spearman ρ.
+
+    공고는 2026-05 단면 고정(시점 무관). 뉴스 시점만 바꿔서 '담론이 언제 현실과 가장 가까웠나' 추적.
+    """
+    news = load_news_processed()
+    if news is None:
+        return
+
+    job_freq = skill_frequency(kr_df["tokens"])
+
+    periods = [
+        ("before",  news[news["year"] <= 2022][news["month"] <= "2022-11"] if "month" in news.columns
+                                                                          else news[news["year"] <= 2022],
+                    "before ChatGPT (~2022-11)"),
+        ("after",   news[news["year"] >= 2023] if "year" in news.columns else news,
+                    "after ChatGPT (2023~)"),
+        ("y2026",   news[news["year"] == 2026], "2026 (동일 시점)"),
+    ]
+    # period 컬럼이 있으면 before/after는 그걸 우선 사용 (RQ3 일관성)
+    if "period" in news.columns:
+        periods = [
+            ("before", news[news["period"] == "before"], "before ChatGPT (~2022-11)"),
+            ("after",  news[news["period"] == "after"],  "after ChatGPT (2022-12~)"),
+            ("y2026",  news[news["year"] == 2026],       "2026 (동일 시점)"),
+        ]
+
+    rows = []
+    for key, sub, label in periods:
+        if len(sub) == 0:
+            print(f"[RQ4d] {label}: 0건 — 스킵")
+            continue
+        n_freq = skill_frequency(sub["news_tokens"])
+        common_tokens = sorted(set(n_freq.index) & set(job_freq.index))
+        if len(common_tokens) < 5:
+            print(f"[RQ4d] {label}: 공통 토큰 부족 — 스킵")
+            continue
+        n_rank = n_freq.reindex(common_tokens).rank(ascending=False, method="min")
+        j_rank = job_freq.reindex(common_tokens).rank(ascending=False, method="min")
+        rho, p = spearmanr(n_rank, j_rank)
+        rows.append({"period": key, "label": label, "n_articles": len(sub),
+                     "n_common_tokens": len(common_tokens),
+                     "rho": rho, "p_value": p})
+        print(f"[RQ4d] {label}: n={len(sub):,} · 공통토큰 {len(common_tokens)} · ρ={rho:.3f} (p={p:.2g})")
+
+    if not rows:
+        return
+    cmp = pd.DataFrame(rows)
+    cmp.to_csv("outputs/rq4_period_spearman.csv", encoding="utf-8-sig", index=False)
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    colors = ["#aaaaaa", "#ff7f0e", "#1f77b4"][:len(cmp)]
+    bars = ax.bar(cmp["label"], cmp["rho"], color=colors, edgecolor="white", width=0.55)
+    for bar, r in zip(bars, cmp.itertuples()):
+        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
+                f"ρ={r.rho:.3f}\nn={r.n_articles:,}",
+                ha="center", fontsize=10, fontweight="bold")
+    ax.axhline(0, color="black", linewidth=0.5)
+    ax.set_ylabel("Spearman ρ — 뉴스 담론 ↔ 공고 요구역량 순위상관", fontsize=11)
+    ax.set_ylim(min(0, cmp["rho"].min() - 0.1), max(cmp["rho"].max() + 0.15, 1.0))
+    ax.set_title("RQ4d: 시점별 담론↔현실 순위상관 — 담론이 현실과 가까워졌나?\n"
+                 "공고는 2026-05 단면 고정 / 뉴스만 시점 변화 · ρ 클수록 일치",
+                 fontsize=11)
+    ax.grid(axis="y", alpha=0.3)
+    plt.tight_layout()
+    plt.savefig(f"{FIG_DIR}/rq4_period_spearman.png", dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"[RQ4d] 저장: {FIG_DIR}/rq4_period_spearman.png")
+
+
+# ---------------------------------------------------------------------------
+# RQ4-e. 직무 × tier 격차 — 어느 직무에서 담론↔현실 간극이 가장 큰가?
+# ---------------------------------------------------------------------------
+def _add_news_roles(news_2026: pd.DataFrame) -> pd.DataFrame:
+    """뉴스 title 기반 직무 멀티라벨 (보수적 매칭).
+
+    body까지 보면 부수 언급 노이즈가 큼. title 매칭은 '명백히 X 직무에 관한 기사'만 잡힘.
+    role_<key> 컬럼 (0/1) 추가.
+    """
+    if "title" not in news_2026.columns:
+        return news_2026
+    out = news_2026.copy()
+    role_sets = out["title"].fillna("").apply(match_all_roles)
+    for role in ROLE_LABELS:
+        if role == "other":
+            continue
+        out[f"role_{role}"] = role_sets.apply(lambda s, r=role: int(r in s))
+    return out
+
+
+def rq4_role_x_tier_gap(kr_df: pd.DataFrame) -> None:
+    """직무 × tier 격차 히트맵 — 뉴스 담론 보유율 - 공고 현실 보유율 (pp)."""
+    news = load_news_processed()
+    if news is None:
+        return
+    news_2026 = news[news["year"] == 2026]
+    if len(news_2026) == 0:
+        print("[RQ4e] 스킵 — 2026년 뉴스 0건")
+        return
+
+    news_2026 = _add_news_roles(news_2026)
+    tiers = list(AI_TIERS.keys())
+    target_roles = [r for r in ROLE_LABELS if r not in ("other", "game")]
+
+    rows = []
+    for role in target_roles:
+        role_col = f"role_{role}"
+        if role_col not in news_2026.columns:
+            continue
+        news_sub = news_2026[news_2026[role_col] == 1]
+        kr_sub   = kr_df[kr_df["role"] == role]
+        if len(news_sub) < 10 or len(kr_sub) < 10:
+            # 표본 너무 작으면 스킵 (오차 큼)
+            continue
+        for tier in tiers:
+            news_rate = news_sub[tier].mean() * 100 if tier in news_sub.columns else float("nan")
+            members = set(AI_TIERS[tier])
+            job_rate = kr_sub["tokens"].apply(lambda toks: bool(set(toks) & members)).mean() * 100
+            rows.append({
+                "role": role, "role_label": ROLE_LABELS[role],
+                "tier": tier, "tier_label": TIER_LABELS[tier],
+                "news_n": len(news_sub), "job_n": len(kr_sub),
+                "news_rate": news_rate, "job_rate": job_rate,
+                "gap": news_rate - job_rate,
+            })
+    if not rows:
+        print("[RQ4e] 스킵 — 직무×tier 매칭 표본 부족")
+        return
+    df = pd.DataFrame(rows)
+    df.to_csv("outputs/rq4_role_x_tier_gap.csv", encoding="utf-8-sig", index=False)
+
+    # 히트맵용 pivot — gap (pp)
+    pivot = df.pivot(index="role_label", columns="tier_label", values="gap")
+    # 직무 정렬 — RQ3 색상 팔레트 순서와 맞추기 위해 ai_ml 위로
+    role_order_by_key = ["ai_ml", "data", "devops", "security", "embedded", "qa",
+                         "backend", "frontend", "fullstack", "mobile"]
+    ordered = [ROLE_LABELS[r] for r in role_order_by_key if ROLE_LABELS[r] in pivot.index]
+    pivot = pivot.reindex(ordered)
+    tier_order = [TIER_LABELS[t] for t in tiers]
+    pivot = pivot[tier_order]
+
+    fig, ax = plt.subplots(figsize=(12, 7))
+    vmax = float(pivot.abs().max().max()) or 1.0
+    im = ax.imshow(pivot.values, cmap="RdBu_r", aspect="auto",
+                   vmin=-vmax, vmax=vmax)
+    ax.set_xticks(np.arange(len(tier_order)))
+    ax.set_xticklabels(tier_order, fontsize=10, rotation=15, ha="right")
+    ax.set_yticks(np.arange(len(ordered)))
+    ax.set_yticklabels(ordered, fontsize=11)
+    # 표본 크기 라벨 우측 부착
+    sample_n = {ROLE_LABELS[r]: (df[df.role == r]["news_n"].iloc[0],
+                                  df[df.role == r]["job_n"].iloc[0])
+                for r in role_order_by_key
+                if r in df["role"].unique()}
+    ax2 = ax.secondary_yaxis("right")
+    ax2.set_yticks(np.arange(len(ordered)))
+    ax2.set_yticklabels([f"뉴스 n={sample_n[r][0]} / 공고 n={sample_n[r][1]}"
+                         for r in ordered], fontsize=8, color="#666")
+    for i, r_label in enumerate(ordered):
+        for j, t_label in enumerate(tier_order):
+            v = pivot.iloc[i, j]
+            if pd.isna(v):
+                continue
+            ax.text(j, i, f"{v:+.0f}", ha="center", va="center",
+                    fontsize=10, fontweight="bold",
+                    color="white" if abs(v) > vmax * 0.55 else "black")
+    cb = plt.colorbar(im, ax=ax, fraction=0.04, pad=0.10)
+    cb.set_label("담론 - 현실 (pp) · +=뉴스 과잉 · -=공고 과잉", fontsize=10)
+    ax.set_title("RQ4e: 직무 × AI tier 담론↔현실 간극 (2026 뉴스 vs 공고)\n"
+                 "셀 값 = 뉴스 보유율% - 공고 보유율% (pp) · "
+                 "빨강=뉴스가 더 호명 / 파랑=공고가 더 요구\n"
+                 "※ 뉴스 직무 매칭은 title 기반 보수적 멀티라벨 · n<10 직무는 제외",
+                 fontsize=11)
+    plt.tight_layout()
+    plt.savefig(f"{FIG_DIR}/rq4_role_x_tier_gap.png", dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"[RQ4e] 저장: {FIG_DIR}/rq4_role_x_tier_gap.png")
+    for role in role_order_by_key:
+        sub = df[df["role"] == role]
+        if sub.empty:
+            continue
+        gaps = " · ".join(f"{TIER_LABELS[r.tier].split(' · ')[0]} Δ{r.gap:+.1f}"
+                          for r in sub.itertuples())
+        print(f"  [{ROLE_LABELS[role]:8s}] 뉴스 n={sub['news_n'].iloc[0]} / 공고 n={sub['job_n'].iloc[0]} | {gaps}")
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
@@ -544,3 +807,6 @@ if __name__ == "__main__":
 
     rq4_news_vs_jobs(kr_df)
     rq4_tier_gap(kr_df)
+    rq4_top_gap_bars(kr_df)
+    rq4_period_spearman(kr_df)
+    rq4_role_x_tier_gap(kr_df)
