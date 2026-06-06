@@ -44,8 +44,13 @@ EXPECTED_FIGURES = {
     "umap_clusters.png":              "UMAP 직무군 산점도 (수업 외)",
     # ---- RQ6 분류 모델 (06 노트북) ----
     "confusion_matrix.png":           "직무군 분류 Confusion Matrix",
-    # ---- RQ4·RQ5 비교 (07 노트북) ----
-    "rq4_gap_index.png":              "RQ4a: 담론 vs 현실 간극지수 (Spearman·순위차)",
+    # ---- RQ4 담론 vs 현실 (07 노트북) ----
+    "rq4_gap_index.png":              "RQ4a: 담론 vs 현실 간극 — 기술스택 순위 사분면 (Spearman)",
+    "rq4_tier_gap.png":               "RQ4b: AI 4-tier 담론 vs 현실 — Tier D 'AI' 과잉 / Tier C ML역량 부족",
+    "rq4_top_gap_bars.png":           "RQ4c: 담론 과잉·조용한 핵심 Top 15 — GPT 도배 / Docker 침묵",
+    "rq4_period_spearman.png":        "RQ4d: 시점별 ρ — before 0.42 → after 0.26 → 2026 0.10 (담론·현실 멀어짐)",
+    "rq4_role_x_tier_gap.png":        "RQ4e: 직무 × tier 격차 — Tier D 모든 직무 과잉 / AI·ML Tier C 부족",
+    # ---- RQ5 한·글 비교 (07 노트북) ----
     "rq5_quadrant.png":               "RQ5-A: 국내 vs 글로벌 사분면 (% × %)",
     "rq5_ai_tier_compare.png":        "RQ5-B: AI 4-tier 한국 vs 글로벌 비교",
     "rq5_role_x_tier_a_coding_tool.png": "RQ5-C: 직무 × Tier A (코딩 도구) 한·글 비교",
