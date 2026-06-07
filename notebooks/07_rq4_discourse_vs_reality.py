@@ -518,199 +518,7 @@ def rq4_tier_gap(kr_df: pd.DataFrame) -> None:
     print(f"[RQ4b] 저장: {FIG_DIR}/rq4_tier_gap.png (뉴스 tier 출처: {src_note})")
     for r in rows:
         print(f"  {r['label']:24s} 뉴스 {r['news']:5.1f}% · 공고 {r['job']:5.1f}% · Δ {r['gap']:+5.1f}pp")
-  # ── RQ4b 추가: 위기·대체·재편 담론 프레임 강도 분석 ──────────────────
-    # 프레임 사전: 위기/대체/재편 키워드 한·영
-    FRAME_DICT = {
-        "위기": [
-            "위기", "일자리 감소", "실업", "고용 위협", "대규모 해고", "인력 감축",
-            "job loss", "unemployment", "layoff", "workforce reduction",
-            "displaced", "job at risk", "automation risk", "고용 불안", "구조조정"
-        ],
-        "대체": [
-            "대체", "인간 대체", "AI 대체", "자동화 대체", "사람 대신", "로봇 대체",
-            "replace", "human replacement", "AI replacing", "automate away",
-            "replaced by AI", "replaced by robots", "일자리 뺏다", "AI가 대신"
-        ],
-        "재편": [
-            "재편", "직무 재편", "역할 변화", "업무 변화", "새로운 직무", "직무 전환",
-            "인력 재배치", "역량 전환", "업스킬", "리스킬",
-            "restructure", "role change", "job transformation", "new roles", "교육",
-            "reskill", "upskill", "workforce transformation", "future of work",
-        ],
-    }
-    FRAME_COLORS = {
-        "위기": "#d62728",
-        "대체": "#ff7f0e",
-        "재편": "#1f77b4",
-    }
-    frame_cols = list(FRAME_DICT.keys())
 
-    # 분석 텍스트 컬럼 선택: body > title > raw_text > 전 문자열 컬럼 concat
-    news_2026 = news_2026.copy()
-    text_col = next((c for c in ("body", "title", "raw_text", "content", "text")
-                     if c in news_2026.columns), None)
-    if text_col:
-        texts = news_2026[text_col].fillna("")
-    else:
-        str_cols = news_2026.select_dtypes(include="object").columns.tolist()
-        texts = news_2026[str_cols].fillna("").apply(lambda r: " ".join(r), axis=1)
-
-    # 기사별 프레임 키워드 hit 수 계산
-    def _detect_frames(text):
-        t = str(text).lower()
-        return {fc: sum(t.count(kw.lower()) for kw in kws)
-                for fc, kws in FRAME_DICT.items()}
-
-    frame_data = texts.apply(_detect_frames).apply(pd.Series)
-    news_2026 = pd.concat([news_2026.reset_index(drop=True),
-                           frame_data.reset_index(drop=True)], axis=1)
-    for fc in frame_cols:
-        news_2026[f"{fc}_any"] = (news_2026[fc] > 0).astype(int)
-
-    n_total     = len(news_2026)
-    total_hits  = {fc: int(news_2026[fc].sum())           for fc in frame_cols}
-    article_cnt = {fc: int(news_2026[f"{fc}_any"].sum())  for fc in frame_cols}
-    article_pct = {fc: article_cnt[fc] / n_total * 100    for fc in frame_cols}
-
-    # CSV 저장
-    news_2026[frame_cols + [f"{fc}_any" for fc in frame_cols]].to_csv(
-        "outputs/rq4b_frame_counts.csv", encoding="utf-8-sig", index=False)
-
-    print("\n=== RQ4b 담론 프레임 강도 ===")
-    for fc in frame_cols:
-        print(f"  [{fc}] 언급 {total_hits[fc]:,}회 | "
-              f"보유 기사 {article_cnt[fc]:,}건 ({article_pct[fc]:.1f}%)")
-    coexist = (news_2026[[f"{fc}_any" for fc in frame_cols]].sum(axis=1) >= 2).sum()
-    print(f"  [공존] 2개 이상 프레임 동시 보유: {coexist}건 ({coexist/n_total*100:.1f}%)")
-
-    # ── 월 컬럼 준비 (시계열용) ───────────────────────────────────────────
-    date_col = next((c for c in ("date", "발행일") if c in news_2026.columns), None)
-    has_month = False
-    if date_col:
-        news_2026["_month"] = pd.to_datetime(news_2026[date_col], errors="coerce").dt.to_period("M")
-        has_month = news_2026["_month"].notna().sum() > 0
-
-    # ── 그림 1: Stacked Area — 월별 프레임 보유 기사 비율 시계열 ────────────
-    if has_month:
-        monthly = (
-            news_2026.groupby("_month")[[f"{fc}_any" for fc in frame_cols]]
-            .mean().mul(100)
-        )
-        monthly.columns = frame_cols
-        monthly_idx = [str(p) for p in monthly.index]
-
-        fig, ax = plt.subplots(figsize=(13, 6))
-        x_pos = np.arange(len(monthly_idx))
-        polys = ax.stackplot(
-            x_pos,
-            [monthly[fc].values for fc in frame_cols],
-            labels=frame_cols,
-            colors=[FRAME_COLORS[fc] for fc in frame_cols],
-            alpha=0.80,
-        )
-        # 각 레이어 경계선 (구분선 강조)
-        cumsum = np.zeros(len(monthly_idx))
-        for fc in frame_cols:
-            cumsum = cumsum + monthly[fc].values
-            ax.plot(x_pos, cumsum, color="white", linewidth=1.2, alpha=0.8)
-        ax.set_xlim(0, len(monthly_idx) - 1)
-        ax.set_xticks(x_pos)
-        ax.set_xticklabels(monthly_idx, fontsize=10)
-        ax.set_ylabel("기사 내 프레임 언급 누적 비율 (%)", fontsize=11)
-        ax.set_xlabel("월", fontsize=11)
-        ax.set_title(
-            "연구질문 rq4b: 뉴스 내 위기·대체·재편 프레임 월별 추이 (누적 영역 차트)\n"
-            f"2026년 뉴스 {n_total:,}건 기준 · 각 프레임별 기사 점유율 누적",
-            fontsize=12, pad=14,
-        )
-        ax.legend(loc="upper right", fontsize=10, framealpha=0.92,
-                  bbox_to_anchor=(0.99, 0.99))
-        ax.grid(axis="y", alpha=0.25, linestyle="--")
-        ax.set_ylim(bottom=0)
-        plt.tight_layout()
-        plt.savefig(f"{FIG_DIR}/rq4b_frame_stacked_area.png", dpi=150, bbox_inches="tight")
-        plt.close(fig)
-        print(f"[RQ4b] 저장: {FIG_DIR}/rq4b_frame_stacked_area.png")
-    else:
-        print("[RQ4b] Stacked Area 스킵 — date/발행일 컬럼 없음")
-
-    # ── 그림 2: Before/After 가로 막대 ──────────────────────────────────────
-    # 월 정보가 있으면 전반기/후반기 분리, 없으면 전체 단일 값으로 대체
-    if has_month:
-        months_sorted = sorted(news_2026["_month"].dropna().unique())
-        mid = months_sorted[len(months_sorted) // 2]
-        before = news_2026[news_2026["_month"] < mid]
-        after  = news_2026[news_2026["_month"] >= mid]
-        before_pct = {fc: before[f"{fc}_any"].mean() * 100 for fc in frame_cols}
-        after_pct  = {fc: after[f"{fc}_any"].mean()  * 100 for fc in frame_cols}
-        시작월 = str(months_sorted[0])
-        종료월 = str(months_sorted[-1])
-        중간점 = str(mid)
-    else:
-        # 월 정보 없을 때: 전체 평균을 after로, 절반값을 before 대용
-        before_pct = {fc: article_pct[fc] * 0.5 for fc in frame_cols}
-        after_pct  = article_pct
-        시작월, 종료월, 중간점 = "전반기", "후반기", "—"
-
-    fig, ax = plt.subplots(figsize=(11, 5))
-    y      = np.arange(len(frame_cols))
-    height = 0.32
-
-    # 전체 최대값 기준으로 x축 여유 결정
-    max_val = max(max(before_pct.values()), max(after_pct.values()))
-    x_limit = max_val * 1.6   # 텍스트 공간 충분히 확보
-
-    bars_b = ax.barh(y + height / 2, [before_pct[fc] for fc in frame_cols],
-                     height, label=f"전반기 ({시작월}~{중간점})",
-                     color=[FRAME_COLORS[fc] for fc in frame_cols], alpha=0.45)
-    bars_a = ax.barh(y - height / 2, [after_pct[fc] for fc in frame_cols],
-                     height, label=f"후반기 ({중간점}~{종료월})",
-                     color=[FRAME_COLORS[fc] for fc in frame_cols], alpha=1.0)
-
-    # 전반기 레이블: 막대 끝에서 살짝 오른쪽, 회색
-    for bar, fc in zip(bars_b, frame_cols):
-        val = before_pct[fc]
-        ax.text(val + max_val * 0.02,
-                bar.get_y() + bar.get_height() / 2,
-                f"{val:.1f}%",
-                va="center", ha="left", fontsize=9, color="gray")
-
-    # 후반기 레이블: 값 + 증감(pp) — 막대 끝 오른쪽에 일정 간격
-    for bar, fc in zip(bars_a, frame_cols):
-        val   = after_pct[fc]
-        delta = after_pct[fc] - before_pct[fc]
-        sign  = "▲" if delta >= 0 else "▼"
-        color = "darkred" if delta >= 0 else "#1f77b4"
-        ax.text(val + max_val * 0.02,
-                bar.get_y() + bar.get_height() / 2,
-                f"{val:.1f}%  {sign}{abs(delta):.1f}pp",
-                va="center", ha="left", fontsize=9, fontweight="bold", color=color)
-
-    ax.set_yticks(y)
-    ax.set_yticklabels(frame_cols, fontsize=11)
-    ax.set_xlabel("해당 프레임 언급 기사 비율 (%)", fontsize=11)
-    ax.set_xlim(0, x_limit)
-    ax.set_title(
-        "연구질문 rq4b: 담론 프레임 변화 비교 (전반기 vs 후반기)\n"
-        f"2026년 뉴스 {n_total:,}건 분석 · 진한 색=후반기 강조 · ▲/▼는 증감폭(pp)",
-        fontsize=12, pad=12,
-    )
-    import matplotlib.patches as mpatches
-    from matplotlib.lines import Line2D
-    # 프레임 색상 범례
-    frame_handles = [
-        mpatches.Patch(color=FRAME_COLORS["위기"],  label="위기"),
-        mpatches.Patch(color=FRAME_COLORS["대체"],  label="대체"),
-        mpatches.Patch(color=FRAME_COLORS["재편"], label="재편"),
-    ]
-    ax.legend(handles=frame_handles, fontsize=10, loc="lower right", 
-              
-              framealpha=0.92)
-    ax.grid(axis="x", alpha=0.3, linestyle="--")
-    plt.tight_layout()
-    plt.savefig(f"{FIG_DIR}/rq4b_frame_before_after.png", dpi=150, bbox_inches="tight")
-    plt.close(fig)
-    print(f"[RQ4b] 저장: {FIG_DIR}/rq4b_frame_before_after.png")  
 
 # ---------------------------------------------------------------------------
 # RQ4-c. 담론 과잉 / 조용한 핵심 top-N 막대 (산점도 보완)
@@ -862,15 +670,16 @@ def rq4_period_spearman(kr_df: pd.DataFrame) -> None:
 # RQ4-e. 직무 × tier 격차 — 어느 직무에서 담론↔현실 간극이 가장 큰가?
 # ---------------------------------------------------------------------------
 def _add_news_roles(news_2026: pd.DataFrame) -> pd.DataFrame:
-    """뉴스 title 기반 직무 멀티라벨 (보수적 매칭).
+    """뉴스 제목 기반 직무 멀티라벨 (보수적 매칭).
 
-    body까지 보면 부수 언급 노이즈가 큼. title 매칭은 '명백히 X 직무에 관한 기사'만 잡힘.
-    role_<key> 컬럼 (0/1) 추가.
+    body까지 보면 부수 언급 노이즈가 큼. 제목 매칭은 '명백히 X 직무에 관한 기사'만 잡힘.
+    스키마 무관: `title`(#7) 또는 `제목`(구) 어느 쪽이든 사용. role_<key> 컬럼 (0/1) 추가.
     """
-    if "title" not in news_2026.columns:
+    title_col = next((c for c in ("title", "제목") if c in news_2026.columns), None)
+    if title_col is None:
         return news_2026
     out = news_2026.copy()
-    role_sets = out["title"].fillna("").apply(match_all_roles)
+    role_sets = out[title_col].fillna("").apply(match_all_roles)
     for role in ROLE_LABELS:
         if role == "other":
             continue
@@ -903,8 +712,9 @@ def rq4_role_x_tier_gap(kr_df: pd.DataFrame) -> None:
             # 표본 너무 작으면 스킵 (오차 큼)
             continue
         for tier in tiers:
-            news_rate = news_sub[tier].mean() * 100 if tier in news_sub.columns else float("nan")
             members = set(AI_TIERS[tier])
+            # 뉴스·공고 양쪽 동일하게 news_tokens/tokens ∩ AI_TIERS 로 계산 (대칭·스키마 무관)
+            news_rate = news_sub["news_tokens"].apply(lambda toks: bool(set(toks) & members)).mean() * 100
             job_rate = kr_sub["tokens"].apply(lambda toks: bool(set(toks) & members)).mean() * 100
             rows.append({
                 "role": role, "role_label": ROLE_LABELS[role],
@@ -959,7 +769,7 @@ def rq4_role_x_tier_gap(kr_df: pd.DataFrame) -> None:
     ax.set_title("RQ4e: 직무 × AI tier 담론↔현실 간극 (2026 뉴스 vs 공고)\n"
                  "셀 값 = 뉴스 보유율% - 공고 보유율% (pp) · "
                  "빨강=뉴스가 더 호명 / 파랑=공고가 더 요구\n"
-                 "※ 뉴스 직무 매칭은 title 기반 보수적 멀티라벨 · n<10 직무는 제외",
+                 "※ 뉴스 직무 매칭은 제목 기반 보수적 멀티라벨 · 뉴스 tier도 토큰∩사전(공고와 대칭) · n<10 직무 제외",
                  fontsize=11)
     plt.tight_layout()
     plt.savefig(f"{FIG_DIR}/rq4_role_x_tier_gap.png", dpi=150, bbox_inches="tight")
@@ -972,6 +782,176 @@ def rq4_role_x_tier_gap(kr_df: pd.DataFrame) -> None:
         gaps = " · ".join(f"{TIER_LABELS[r.tier].split(' · ')[0]} Δ{r.gap:+.1f}"
                           for r in sub.itertuples())
         print(f"  [{ROLE_LABELS[role]:8s}] 뉴스 n={sub['news_n'].iloc[0]} / 공고 n={sub['job_n'].iloc[0]} | {gaps}")
+
+
+# ---------------------------------------------------------------------------
+# RQ4-f. 위기·대체·재편 담론 프레임 강도 (뉴스 본문 프레이밍 — 담론 내부 분석)
+# ---------------------------------------------------------------------------
+FRAME_DICT = {
+    "위기": [
+        "위기", "일자리 감소", "실업", "고용 위협", "대규모 해고", "인력 감축",
+        "job loss", "unemployment", "layoff", "workforce reduction",
+        "displaced", "job at risk", "automation risk", "고용 불안", "구조조정",
+    ],
+    "대체": [
+        "대체", "인간 대체", "AI 대체", "자동화 대체", "사람 대신", "로봇 대체",
+        "replace", "human replacement", "AI replacing", "automate away",
+        "replaced by AI", "replaced by robots", "일자리 뺏다", "AI가 대신",
+    ],
+    "재편": [
+        "재편", "직무 재편", "역할 변화", "업무 변화", "새로운 직무", "직무 전환",
+        "인력 재배치", "역량 전환", "업스킬", "리스킬",
+        "restructure", "role change", "job transformation", "new roles",
+        "reskill", "upskill", "workforce transformation", "future of work",
+    ],
+}
+FRAME_COLORS = {"위기": "#d62728", "대체": "#ff7f0e", "재편": "#1f77b4"}
+
+
+def rq4f_frame_strength() -> None:
+    """RQ4-f. 뉴스 내 위기·대체·재편 담론 프레임 강도 — 월별 추이 + 전/후반기 비교.
+
+    공고와 대조하는 RQ4a~e와 달리 '담론 내부의 프레이밍'만 본다.
+    프레임 키워드는 다어절 구("일자리 감소")가 많아 전처리 토큰이 아닌 원문(본문)에서 매칭.
+    """
+    news = load_news_processed()
+    if news is None:
+        return
+    news_2026 = news[news["year"] == 2026].copy()
+    if len(news_2026) == 0:
+        print("[RQ4f] 스킵 — 2026년 뉴스 0건")
+        return
+
+    frame_cols = list(FRAME_DICT.keys())
+
+    # 매칭 텍스트: 원문(본문/body) 우선 — 다어절 프레임어 보존. 없으면 문자열 컬럼 concat
+    text_col = next((c for c in ("본문", "body", "raw_text", "content", "text")
+                     if c in news_2026.columns), None)
+    if text_col:
+        texts = news_2026[text_col].fillna("")
+    else:
+        str_cols = news_2026.select_dtypes(include="object").columns.tolist()
+        texts = news_2026[str_cols].fillna("").apply(lambda r: " ".join(r), axis=1)
+
+    def _detect_frames(text):
+        t = str(text).lower()
+        return {fc: sum(t.count(kw.lower()) for kw in kws)
+                for fc, kws in FRAME_DICT.items()}
+
+    frame_data = texts.apply(_detect_frames).apply(pd.Series)
+    news_2026 = pd.concat([news_2026.reset_index(drop=True),
+                           frame_data.reset_index(drop=True)], axis=1)
+    for fc in frame_cols:
+        news_2026[f"{fc}_any"] = (news_2026[fc] > 0).astype(int)
+
+    n_total     = len(news_2026)
+    total_hits  = {fc: int(news_2026[fc].sum())          for fc in frame_cols}
+    article_cnt = {fc: int(news_2026[f"{fc}_any"].sum()) for fc in frame_cols}
+    article_pct = {fc: article_cnt[fc] / n_total * 100   for fc in frame_cols}
+
+    # 요약 통계만 커밋 — 기사당 원자료는 무겁고 재현 가능하므로 저장 안 함
+    pd.DataFrame({
+        "frame": frame_cols,
+        "total_hits":   [total_hits[fc]   for fc in frame_cols],
+        "article_cnt":  [article_cnt[fc]  for fc in frame_cols],
+        "article_pct":  [article_pct[fc]  for fc in frame_cols],
+    }).to_csv("outputs/rq4f_frame_summary.csv", encoding="utf-8-sig", index=False)
+
+    print("\n=== RQ4f 담론 프레임 강도 ===")
+    for fc in frame_cols:
+        print(f"  [{fc}] 언급 {total_hits[fc]:,}회 | "
+              f"보유 기사 {article_cnt[fc]:,}건 ({article_pct[fc]:.1f}%)")
+    coexist = (news_2026[[f"{fc}_any" for fc in frame_cols]].sum(axis=1) >= 2).sum()
+    print(f"  [공존] 2개 이상 프레임 동시 보유: {coexist}건 ({coexist / n_total * 100:.1f}%)")
+
+    # 월 컬럼 — date/발행일 없으면 시점 차트 스킵 (가짜 before/after 만들지 않음)
+    date_col = next((c for c in ("date", "발행일") if c in news_2026.columns), None)
+    if not date_col:
+        print("[RQ4f] 시점 차트 스킵 — date/발행일 컬럼 없음")
+        return
+    news_2026["_month"] = pd.to_datetime(news_2026[date_col], errors="coerce").dt.to_period("M")
+    news_2026 = news_2026[news_2026["_month"].notna()]
+    if len(news_2026) == 0:
+        print("[RQ4f] 시점 차트 스킵 — 유효 날짜 0건")
+        return
+
+    # ── 그림 1: 월별 프레임 보유 기사 비율 누적영역 ──────────────────────────
+    monthly = (news_2026.groupby("_month")[[f"{fc}_any" for fc in frame_cols]]
+               .mean().mul(100))
+    monthly.columns = frame_cols
+    monthly_idx = [str(p) for p in monthly.index]
+
+    fig, ax = plt.subplots(figsize=(13, 6))
+    x_pos = np.arange(len(monthly_idx))
+    ax.stackplot(x_pos, [monthly[fc].values for fc in frame_cols],
+                 labels=frame_cols, colors=[FRAME_COLORS[fc] for fc in frame_cols],
+                 alpha=0.80)
+    cumsum = np.zeros(len(monthly_idx))
+    for fc in frame_cols:
+        cumsum = cumsum + monthly[fc].values
+        ax.plot(x_pos, cumsum, color="white", linewidth=1.2, alpha=0.8)
+    ax.set_xlim(0, max(len(monthly_idx) - 1, 1))
+    ax.set_xticks(x_pos)
+    ax.set_xticklabels(monthly_idx, fontsize=10)
+    ax.set_ylabel("기사 내 프레임 언급 누적 비율 (%)", fontsize=11)
+    ax.set_xlabel("월", fontsize=11)
+    ax.set_title("RQ4f: 뉴스 내 위기·대체·재편 프레임 월별 추이 (누적 영역)\n"
+                 f"2026년 뉴스 {n_total:,}건 · 각 프레임별 기사 점유율 누적",
+                 fontsize=12, pad=14)
+    ax.legend(loc="upper right", fontsize=10, framealpha=0.92)
+    ax.grid(axis="y", alpha=0.25, linestyle="--")
+    ax.set_ylim(bottom=0)
+    plt.tight_layout()
+    plt.savefig(f"{FIG_DIR}/rq4f_frame_stacked_area.png", dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"[RQ4f] 저장: {FIG_DIR}/rq4f_frame_stacked_area.png")
+
+    # ── 그림 2: 전반기 vs 후반기 프레임 비율 ────────────────────────────────
+    months_sorted = sorted(news_2026["_month"].dropna().unique())
+    if len(months_sorted) < 2:
+        print("[RQ4f] 전/후반기 비교 스킵 — 월 구간 1개")
+        return
+    mid = months_sorted[len(months_sorted) // 2]
+    before = news_2026[news_2026["_month"] < mid]
+    after  = news_2026[news_2026["_month"] >= mid]
+    before_pct = {fc: before[f"{fc}_any"].mean() * 100 for fc in frame_cols}
+    after_pct  = {fc: after[f"{fc}_any"].mean() * 100 for fc in frame_cols}
+    시작월, 중간점, 종료월 = str(months_sorted[0]), str(mid), str(months_sorted[-1])
+
+    fig, ax = plt.subplots(figsize=(11, 5))
+    y = np.arange(len(frame_cols))
+    height = 0.32
+    max_val = max(max(before_pct.values()), max(after_pct.values())) or 1.0
+
+    ax.barh(y + height / 2, [before_pct[fc] for fc in frame_cols], height,
+            color=[FRAME_COLORS[fc] for fc in frame_cols], alpha=0.45)
+    bars_a = ax.barh(y - height / 2, [after_pct[fc] for fc in frame_cols], height,
+                     color=[FRAME_COLORS[fc] for fc in frame_cols], alpha=1.0)
+    for bar, fc in zip(ax.containers[0], frame_cols):
+        ax.text(before_pct[fc] + max_val * 0.02, bar.get_y() + bar.get_height() / 2,
+                f"{before_pct[fc]:.1f}%", va="center", ha="left", fontsize=9, color="gray")
+    for bar, fc in zip(bars_a, frame_cols):
+        delta = after_pct[fc] - before_pct[fc]
+        sign = "▲" if delta >= 0 else "▼"
+        color = "darkred" if delta >= 0 else "#1f77b4"
+        ax.text(after_pct[fc] + max_val * 0.02, bar.get_y() + bar.get_height() / 2,
+                f"{after_pct[fc]:.1f}%  {sign}{abs(delta):.1f}pp",
+                va="center", ha="left", fontsize=9, fontweight="bold", color=color)
+    ax.set_yticks(y)
+    ax.set_yticklabels(frame_cols, fontsize=11)
+    ax.set_xlabel("해당 프레임 언급 기사 비율 (%)", fontsize=11)
+    ax.set_xlim(0, max_val * 1.6)
+    ax.set_title("RQ4f: 담론 프레임 변화 — 전반기 vs 후반기\n"
+                 f"전반기 {시작월}~{중간점} · 후반기 {중간점}~{종료월} · ▲/▼ 증감폭(pp)",
+                 fontsize=12, pad=12)
+    import matplotlib.patches as mpatches
+    ax.legend(handles=[mpatches.Patch(color=FRAME_COLORS[fc], label=fc) for fc in frame_cols],
+              fontsize=10, loc="lower right", framealpha=0.92)
+    ax.grid(axis="x", alpha=0.3, linestyle="--")
+    plt.tight_layout()
+    plt.savefig(f"{FIG_DIR}/rq4f_frame_before_after.png", dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"[RQ4f] 저장: {FIG_DIR}/rq4f_frame_before_after.png")
 
 
 # ---------------------------------------------------------------------------
@@ -1002,3 +982,4 @@ if __name__ == "__main__":
     rq4_top_gap_bars(kr_df)
     rq4_period_spearman(kr_df)
     rq4_role_x_tier_gap(kr_df)
+    rq4f_frame_strength()
