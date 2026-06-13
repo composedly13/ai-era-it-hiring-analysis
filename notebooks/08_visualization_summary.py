@@ -39,11 +39,12 @@ EXPECTED_FIGURES = {
     "news_role_groups.png":           "RQ3-G-2: 직무 그룹 묶음 시계열 (웹·앱·인프라·AI/ML)",
     "news_role_x_tier.png":           "RQ3-H: 직무 × AI Tier 결합 매트릭스 (before vs after)",
     "news_career_stage_trend.png":    "RQ3-I: 신입·주니어·경력·시니어 채용 담론 시계열",
-    # ---- 수업 외 모델링 (05 노트북) ----
-    "bertopic_topics.html":           "BERTopic 토픽 분포 (수업 외)",
-    "umap_clusters.png":              "UMAP 직무군 산점도 (수업 외)",
-    # ---- RQ6 분류 모델 (06 노트북) ----
-    "confusion_matrix.png":           "직무군 분류 Confusion Matrix",
+    # ---- 보조 분석 / 수업 외 모델링 (05 노트북) ----
+    "bertopic_topics.png":            "BERTopic 토픽별 대표 키워드 (논문 4-4-2 / 수업 외)",
+    "bertopic_topics.html":           "BERTopic 토픽 분포 인터랙티브 (논문 4-4-2 / 수업 외)",
+    "umap_clusters.png":              "UMAP 직무군 산점도 (논문 4-4-3 / 수업 외)",
+    # ---- 직무군 분류 (06 노트북) ----
+    "confusion_matrix.png":           "직무군 분류 Confusion Matrix (논문 4-4-1 / repo legacy RQ6)",
     # ---- RQ4 담론 vs 현실 (07 노트북) ----
     "rq4_gap_index.png":              "RQ4a: 담론 vs 현실 간극 — 기술스택 순위 사분면 (Spearman)",
     "rq4_tier_gap.png":               "RQ4b: AI 4-tier 담론 vs 현실 — Tier D 'AI' 과잉 / Tier C ML역량 부족",
