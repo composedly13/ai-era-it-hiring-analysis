@@ -37,6 +37,15 @@ def build_tfidf_svm_pipeline() -> Pipeline:
 
 
 def train_and_evaluate(X_train, y_train, X_test, y_test, pipeline: Pipeline) -> dict:
-    """학습 + 평가 결과(Accuracy, F1) 반환."""
-    # TODO: 구현
-    raise NotImplementedError
+    """학습 + 평가 결과(Accuracy, weighted-F1, classification_report, confusion_matrix) 반환.
+
+    confusion_matrix / classification_report 의 라벨 순서는 JOB_LABELS 로 고정해
+    혼동행렬 축(xticklabels=JOB_LABELS)과 일치시킨다.
+    """
+    from src.modeling.evaluation import evaluate
+
+    pipeline.fit(X_train, y_train)
+    y_pred = pipeline.predict(X_test)
+    res = evaluate(y_test, y_pred, labels=JOB_LABELS)
+    res["model"] = pipeline
+    return res
