@@ -16,10 +16,38 @@ from bertopic import BERTopic
 import pandas as pd
 
 
-def train_bertopic(docs: list[str], language: str = "multilingual", nr_topics: int = 7) -> tuple:
-    """BERTopic 모델 학습 및 토픽-문서 매핑 반환."""
-    model = BERTopic(language=language, nr_topics=nr_topics, calculate_probabilities=True)
-    topics, probs = model.fit_transform(docs)
+def train_bertopic(
+    docs: list[str],
+    language: str = "multilingual",
+    nr_topics=None,
+    embedding_model=None,
+    vectorizer_model=None,
+    min_topic_size: int = 10,
+    calculate_probabilities: bool = False,
+    embeddings=None,
+) -> tuple:
+    """BERTopic 모델 학습 및 토픽-문서 매핑 반환.
+
+    - embedding_model: 사전 로드한 SBERT 인스턴스를 넘기면 그것을 사용(UMAP과 임베딩 공유).
+      None 이면 language 로 기본 임베딩.
+    - vectorizer_model: c-TF-IDF 단어 추출용 CountVectorizer(불용어/min_df/ngram 지정).
+    - min_topic_size: 군집 최소 크기. 작을수록 토픽이 잘게 분리됨.
+    - embeddings: 사전 계산한 임베딩 배열(중복 계산 회피). docs 와 같은 순서.
+    """
+    kwargs = dict(
+        nr_topics=nr_topics,
+        min_topic_size=min_topic_size,
+        calculate_probabilities=calculate_probabilities,
+    )
+    if embedding_model is not None:
+        kwargs["embedding_model"] = embedding_model
+    else:
+        kwargs["language"] = language
+    if vectorizer_model is not None:
+        kwargs["vectorizer_model"] = vectorizer_model
+
+    model = BERTopic(**kwargs)
+    topics, probs = model.fit_transform(docs, embeddings=embeddings)
     return model, topics, probs
 
 

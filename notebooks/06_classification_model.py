@@ -26,6 +26,7 @@ from src.modeling.job_classifier import (
     build_tfidf_svm_pipeline,
     train_and_evaluate,
     JOB_LABELS,
+    ROLE_TO_LABEL,  # role(12종)→JOB_LABELS(7종) 매핑 — 05 UMAP 과 공유하는 단일 정의
 )
 from src.visualization._fonts import setup_korean_font
 
@@ -36,23 +37,6 @@ MDL_DIR       = "outputs/models"
 
 os.makedirs(FIG_DIR, exist_ok=True)
 os.makedirs(MDL_DIR, exist_ok=True)
-
-# role(원천 직무군 컬럼) → JOB_LABELS(7종) 매핑.
-# 명시 라벨이 없는 세부 직무(embedded/qa/mobile/game/other)는 Other IT 로 통합.
-ROLE_TO_LABEL = {
-    "frontend": "Frontend",
-    "backend":  "Backend",
-    "fullstack": "Fullstack",
-    "ai_ml":    "Data·AI",
-    "data":     "Data·AI",
-    "devops":   "DevOps·Cloud",
-    "security": "Security",
-    "other":    "Other IT",
-    "embedded": "Other IT",
-    "qa":       "Other IT",
-    "mobile":   "Other IT",
-    "game":     "Other IT",
-}
 
 # ★ Validity Guardrail #3 — 라벨 누수 차단:
 #   라벨 원천인 'role' 과, 직무 카테고리를 그대로 담은 'site_categories' 는 입력 피처에서 제외한다.
