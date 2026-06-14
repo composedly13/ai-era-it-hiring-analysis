@@ -44,7 +44,7 @@ TIER_LABELS = {
     "tier_a_coding_tool":   "Tier A · AI 코딩 도구",
     "tier_b_model_platform":"Tier B · AI 모델·플랫폼",
     "tier_c_ml_skill":      "Tier C · AI/ML 직무 역량",
-    "tier_d_generic":       "Tier D · 모호한 'AI'",
+    "tier_d_generic":       "Tier D · AI 일반어(광의)",
 }
 TIER_COLORS = {
     "tier_a_coding_tool":   "#d62728",
@@ -180,12 +180,12 @@ def rq1_ai_exclusive_mode() -> dict:
     members_by_tier = {t: set(AI_TIERS[t]) for t in AI_TIERS}
 
     mode_counts = {"Tier A · AI 코딩 도구": 0, "Tier B · AI 모델·플랫폼": 0,
-                   "Tier C · AI/ML 직무 역량": 0, "Tier D · 모호한 'AI'만": 0,
+                   "Tier C · AI/ML 직무 역량": 0, "Tier D · AI 일반어(광의)만": 0,
                    "AI 미언급": 0}
     mode_colors = {"Tier A · AI 코딩 도구": TIER_COLORS["tier_a_coding_tool"],
                    "Tier B · AI 모델·플랫폼": TIER_COLORS["tier_b_model_platform"],
                    "Tier C · AI/ML 직무 역량": TIER_COLORS["tier_c_ml_skill"],
-                   "Tier D · 모호한 'AI'만":   TIER_COLORS["tier_d_generic"],
+                   "Tier D · AI 일반어(광의)만":   TIER_COLORS["tier_d_generic"],
                    "AI 미언급": "#e0e0e0"}
 
     for s in df["skills"].fillna(""):
@@ -197,7 +197,7 @@ def rq1_ai_exclusive_mode() -> dict:
         elif tokens & members_by_tier["tier_c_ml_skill"]:
             mode_counts["Tier C · AI/ML 직무 역량"] += 1
         elif tokens & members_by_tier["tier_d_generic"]:
-            mode_counts["Tier D · 모호한 'AI'만"] += 1
+            mode_counts["Tier D · AI 일반어(광의)만"] += 1
         else:
             mode_counts["AI 미언급"] += 1
 
@@ -515,12 +515,12 @@ def rq2_ai_exclusive_mode() -> dict:
     members_by_tier = {t: set(AI_TIERS[t]) for t in AI_TIERS}
 
     mode_counts = {"Tier A · AI 코딩 도구": 0, "Tier B · AI 모델·플랫폼": 0,
-                   "Tier C · AI/ML 직무 역량": 0, "Tier D · 모호한 'AI'만": 0,
+                   "Tier C · AI/ML 직무 역량": 0, "Tier D · AI 일반어(광의)만": 0,
                    "AI 미언급": 0}
     mode_colors = {"Tier A · AI 코딩 도구": TIER_COLORS["tier_a_coding_tool"],
                    "Tier B · AI 모델·플랫폼": TIER_COLORS["tier_b_model_platform"],
                    "Tier C · AI/ML 직무 역량": TIER_COLORS["tier_c_ml_skill"],
-                   "Tier D · 모호한 'AI'만":   TIER_COLORS["tier_d_generic"],
+                   "Tier D · AI 일반어(광의)만":   TIER_COLORS["tier_d_generic"],
                    "AI 미언급": "#e0e0e0"}
 
     for s in df["skills"].fillna(""):
@@ -532,7 +532,7 @@ def rq2_ai_exclusive_mode() -> dict:
         elif tokens & members_by_tier["tier_c_ml_skill"]:
             mode_counts["Tier C · AI/ML 직무 역량"] += 1
         elif tokens & members_by_tier["tier_d_generic"]:
-            mode_counts["Tier D · 모호한 'AI'만"] += 1
+            mode_counts["Tier D · AI 일반어(광의)만"] += 1
         else:
             mode_counts["AI 미언급"] += 1
     assert sum(mode_counts.values()) == n_total, "상호배타 분류 합계 불일치"
