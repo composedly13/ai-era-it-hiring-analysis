@@ -38,7 +38,7 @@ TIER_LABELS = {
     "tier_a_coding_tool":    "Tier A · AI 코딩 도구",
     "tier_b_model_platform": "Tier B · AI 모델·플랫폼",
     "tier_c_ml_skill":       "Tier C · AI/ML 직무 역량",
-    "tier_d_generic":        "Tier D · 모호한 'AI'",
+    "tier_d_generic":        "Tier D · AI 일반어(광의)",
 }
 TIER_COLORS = {
     "tier_a_coding_tool":    "#d62728",
@@ -351,7 +351,7 @@ def rq5_key_tokens_gap(kr_share: pd.Series, gl_share: pd.Series) -> None:
         ("Tier A · AI 코딩 도구",    TIER_COLORS["tier_a_coding_tool"]),
         ("Tier B · AI 모델·플랫폼", TIER_COLORS["tier_b_model_platform"]),
         ("Tier C · AI/ML 직무 역량", TIER_COLORS["tier_c_ml_skill"]),
-        ("Tier D · 모호한 'AI'",     TIER_COLORS["tier_d_generic"]),
+        ("Tier D · AI 일반어(광의)",     TIER_COLORS["tier_d_generic"]),
         ("기타 핵심 스택",            "#888888"),
     ]
     ax.legend(handles=[mpatches.Patch(color=c, label=l) for l, c in legend_items],
@@ -824,14 +824,29 @@ def rq4f_frame_strength() -> None:
 
     frame_cols = list(FRAME_DICT.keys())
 
-    # 매칭 텍스트: 원문(본문/body) 우선 — 다어절 프레임어 보존. 없으면 문자열 컬럼 concat
+    # 매칭 텍스트: 원문(본문/body) 우선 — 다어절 프레임어 보존.
     text_col = next((c for c in ("본문", "body", "raw_text", "content", "text")
                      if c in news_2026.columns), None)
+    if not text_col:
+        # 신스키마 csv엔 body가 없으므로 raw xlsx에서 news_id 기준 재로드(04 framing과 동일 패턴).
+        try:
+            from src.collection.bigkinds_news import load_news as _load_raw
+            raw = _load_raw(ok_only=False)[["news_id", "body"]]
+            raw["news_id"] = raw["news_id"].astype(str)
+            news_2026["news_id"] = news_2026["news_id"].astype(str)
+            news_2026 = news_2026.merge(raw, on="news_id", how="left")
+            news_2026["body"] = news_2026["body"].fillna("")
+            text_col = "body"
+        except Exception as e:
+            print(f"[RQ4f] body 재로드 실패({e}) — 문자열 컬럼으로 대체")
     if text_col:
         texts = news_2026[text_col].fillna("")
     else:
-        str_cols = news_2026.select_dtypes(include="object").columns.tolist()
-        texts = news_2026[str_cols].fillna("").apply(lambda r: " ".join(r), axis=1)
+        # 리스트형(news_tokens 등) 컬럼은 제외하고 문자열 컬럼만 concat
+        str_cols = [c for c in news_2026.select_dtypes(include="object").columns
+                    if not news_2026[c].apply(lambda v: isinstance(v, list)).any()]
+        texts = news_2026[str_cols].fillna("").apply(
+            lambda r: " ".join(map(str, r)), axis=1)
 
     def _detect_frames(text):
         t = str(text).lower()
